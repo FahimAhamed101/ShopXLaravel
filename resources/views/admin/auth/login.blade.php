@@ -10,7 +10,8 @@
     <!-- Favicon -->
     <link rel="shortcut icon" type="image/x-icon" href="{{ asset('assets/frontend/dist/imgs/theme/favicon.svg') }}" />
     <!-- BEGIN GLOBAL MANDATORY STYLES -->
-    <link href="{{ asset('assets/admin/dist/css/tabler.css') }}" rel="stylesheet" />
+    <link href="{{ asset('assets/admin/css/tabler.min.css') }}" rel="stylesheet" />
+    <link href="{{ asset('assets/admin/css/tabler-vendors.min.css') }}" rel="stylesheet" />
     <!-- END GLOBAL MANDATORY STYLES -->
     <!-- BEGIN CUSTOM FONT -->
     <style>

@@ -10,7 +10,9 @@ use App\Services\AlertService;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Session;
 use Illuminate\Validation\ValidationException;
 
@@ -18,8 +20,13 @@ class CartController extends Controller
 {
     function index(): View
     {
-        $cartItems = Cart::with('product')->where('user_id', user()->id)->paginate(30);
-        if(Session::has('coupon')) {
+        $cartItems = new LengthAwarePaginator([], 0, 30);
+
+        if (Schema::hasTable('carts')) {
+            $cartItems = Cart::with('product')->where('user_id', user()->id)->paginate(30);
+        }
+
+        if(Session::has('coupon') && Schema::hasTable('coupons')) {
             $coupon = Coupon::find(Session::get('coupon')['id']);
             $validateCoupon = $this->validateCoupon($coupon, $this->cartSubTotal());
             if(isset($validateCoupon['error'])) {
@@ -31,6 +38,9 @@ class CartController extends Controller
 
     function productModal(Product $product): String
     {
+        if (! view()->exists('components.frontend.product-quick-view-modal')) {
+            return '';
+        }
 
         $modal = view('components.frontend.product-quick-view-modal', compact('product'))->render();
 
@@ -92,7 +102,7 @@ class CartController extends Controller
 
     function checkStock(Product $product, $variantId, $quantity)
     {
-        if($variantId) {
+        if($variantId && Schema::hasTable('product_variants')) {
             $variant = $product->variants()->find($variantId);
             if(!$variant || !$variant->in_stock || ($variant->manage_stock && $variant->qty < $quantity)) {
                 abort(422, 'Product out of stock');
@@ -179,6 +189,12 @@ class CartController extends Controller
 
     function applyCoupon(Request $request)
     {
+        if (! Schema::hasTable('coupons')) {
+            return response()->json([
+                'message' => 'Coupons are not available right now.',
+            ], 422);
+        }
+
         $coupon = Coupon::where('code', $request->coupon_code)->first();
         $cartTotal = $this->cartSubTotal();
 

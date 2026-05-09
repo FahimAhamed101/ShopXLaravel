@@ -105,7 +105,7 @@
                                 <select name="method" class="form-control">
                                     <option value="">Select Gateway</option>
                                     @foreach ($withdrawMethods as $method)
-                                        <option value="{{ $method->id }}">{{ $method->withdrawMethod->name }}</option>
+                                        <option value="{{ $method->id }}">{{ $method->withdrawMethod?->name ?? 'Manual' }}</option>
                                     @endforeach
                                 </select>
                                 <x-input-error :messages="$errors->get('method')" class="mt-2" />

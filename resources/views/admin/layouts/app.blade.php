@@ -17,7 +17,8 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.34.0/dist/tabler-icons.min.css" />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/nestable2/1.6.0/jquery.nestable.min.css">
-    <link href="{{ asset('assets/admin/dist/css/tabler.css') }}" rel="stylesheet" />
+    <link href="{{ asset('assets/admin/css/tabler.min.css') }}" rel="stylesheet" />
+    <link href="{{ asset('assets/admin/css/tabler-vendors.min.css') }}" rel="stylesheet" />
     <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
     <!-- END GLOBAL MANDATORY STYLES -->
 
@@ -32,7 +33,7 @@
 
 <body>
     <!-- BEGIN GLOBAL THEME SCRIPT -->
-    <script src="{{ asset('assets/admin/dist/js/tabler-theme.min.js') }}"></script>
+    <script src="{{ asset('assets/admin/js/tabler-theme.min.js') }}"></script>
     <!-- END GLOBAL THEME SCRIPT -->
     <div class="page">
         <!--  BEGIN SIDEBAR  -->
@@ -72,14 +73,17 @@
     <script src="https://code.jquery.com/jquery-3.7.1.min.js"
         integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
     <script src="{{ asset('assets/global/upload-preview/upload-preview.min.js') }}"></script>
-    <script src="{{ asset('assets/admin/dist/js/tinymce/tinymce.min.js') }}"></script>
+    <script src="{{ asset('assets/admin/libs/hugerte/hugerte.min.js') }}"></script>
+    <script>
+        window.tinymce = window.tinymce || window.hugerte;
+    </script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/nestable2/1.6.0/jquery.nestable.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
-    <script src="{{ asset('assets/admin/dist/libs/litepicker/dist/litepicker.js') }}" defer></script>
+    <script src="{{ asset('assets/admin/libs/litepicker/dist/litepicker.js') }}" defer></script>
     <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
-    <script src="{{ asset('assets/admin/dist/js/tabler.min.js') }}" defer></script>
+    <script src="{{ asset('assets/admin/js/tabler.min.js') }}" defer></script>
     @include('admin.layouts.scripts')
     @stack('scripts')
     <!-- END GLOBAL MANDATORY SCRIPTS -->

@@ -8,7 +8,8 @@
     <meta http-equiv="X-UA-Compatible" content="ie=edge" />
     <title>Reset Password</title>
     <!-- BEGIN GLOBAL MANDATORY STYLES -->
-    <link href="{{ asset('assets/admin/dist/css/tabler.css') }}" rel="stylesheet" />
+    <link href="{{ asset('assets/admin/css/tabler.min.css') }}" rel="stylesheet" />
+    <link href="{{ asset('assets/admin/css/tabler-vendors.min.css') }}" rel="stylesheet" />
     <!-- END GLOBAL MANDATORY STYLES -->
     <!-- BEGIN CUSTOM FONT -->
     <style>

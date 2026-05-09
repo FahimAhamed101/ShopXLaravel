@@ -112,8 +112,13 @@ Route::middleware('auth:admin','role:Admin|Super Admin')
 
 
         /** Role Routes */
-        Route::resource('/role', RoleController::class);
-        Route::resource('/role-users', UserRoleController::class);
+        if (class_exists(RoleController::class)) {
+            Route::resource('/role', RoleController::class);
+        }
+
+        if (class_exists(UserRoleController::class)) {
+            Route::resource('/role-users', UserRoleController::class);
+        }
 
         /** Categories Routes */
         Route::get('/categories', [CategoryController::class, 'index'])->name('categories.index');
@@ -125,7 +130,9 @@ Route::middleware('auth:admin','role:Admin|Super Admin')
         Route::delete('/categories/{id}', [CategoryController::class, 'destroy'])->name('categories.destroy');
 
         /** Tags Routes */
-        Route::resource('/tags', TagController::class);
+        if (class_exists(TagController::class)) {
+            Route::resource('/tags', TagController::class);
+        }
 
         /** Brand Routes */
         Route::resource('/brands', BrandController::class);
@@ -158,80 +165,118 @@ Route::middleware('auth:admin','role:Admin|Super Admin')
 
 
         /** Coupons Routes */
-        Route::resource('/coupons', CouponController::class);
+        if (class_exists(CouponController::class)) {
+            Route::resource('/coupons', CouponController::class);
+        }
 
         /**Shipping Routes */
-        Route::resource('/shipping-rules', ShippingRuleController::class);
+        if (class_exists(ShippingRuleController::class)) {
+            Route::resource('/shipping-rules', ShippingRuleController::class);
+        }
 
         /** Payment Setting Routes */
-        Route::get('/payment-settings', [PaymentSettingController::class, 'index'])->name('payment-settings.index');
-        Route::put('/paypal-settings', [PaymentSettingController::class, 'paypalSettings'])->name('paypal-settings.store');
-        Route::get('/stripe-settings', [PaymentSettingController::class, 'stripe'])->name('stripe-settings.index');
-        Route::put('/stripe-settings', [PaymentSettingController::class, 'stripeSettings'])->name('stripe-settings.store');
-        Route::get('/razorpay-settings', [PaymentSettingController::class, 'razorpay'])->name('razorpay-settings.index');
-        Route::put('/razorpay-settings', [PaymentSettingController::class, 'razorpaySettings'])->name('razorpay-settings.store');
+        if (class_exists(PaymentSettingController::class)) {
+            Route::get('/payment-settings', [PaymentSettingController::class, 'index'])->name('payment-settings.index');
+            Route::put('/paypal-settings', [PaymentSettingController::class, 'paypalSettings'])->name('paypal-settings.store');
+            Route::get('/stripe-settings', [PaymentSettingController::class, 'stripe'])->name('stripe-settings.index');
+            Route::put('/stripe-settings', [PaymentSettingController::class, 'stripeSettings'])->name('stripe-settings.store');
+            Route::get('/razorpay-settings', [PaymentSettingController::class, 'razorpay'])->name('razorpay-settings.index');
+            Route::put('/razorpay-settings', [PaymentSettingController::class, 'razorpaySettings'])->name('razorpay-settings.store');
+        }
 
         /** Order Routes */
-        Route::get('/orders', [OrderController::class, 'index'])->name('orders.index');
-        Route::get('/orders/{order}', [OrderController::class, 'show'])->name('orders.show');
-        Route::post('/orders/{order}/update', [OrderController::class, 'update'])->name('orders.update');
+        if (class_exists(OrderController::class)) {
+            Route::get('/orders', [OrderController::class, 'index'])->name('orders.index');
+            Route::get('/orders/{order}', [OrderController::class, 'show'])->name('orders.show');
+            Route::post('/orders/{order}/update', [OrderController::class, 'update'])->name('orders.update');
+        }
 
         /** Withdraw Method Routes */
-        Route::resource('withdraw-methods', WithdrawMethodController::class);
-        Route::resource('withdraw-requests', WithdrawRequestController::class);
+        if (class_exists(WithdrawMethodController::class)) {
+            Route::resource('withdraw-methods', WithdrawMethodController::class);
+        }
+
+        if (class_exists(WithdrawRequestController::class)) {
+            Route::resource('withdraw-requests', WithdrawRequestController::class);
+        }
 
 
         /** Slider Routes */
-        Route::resource('sliders', SliderController::class);
-        Route::resource('hero-banners', HeroBannerController::class);
+        if (class_exists(SliderController::class)) {
+            Route::resource('sliders', SliderController::class);
+        }
+
+        if (class_exists(HeroBannerController::class)) {
+            Route::resource('hero-banners', HeroBannerController::class);
+        }
         Route::resource('popular-categories', PopularCategoryController::class);
         /** Flash Sale Routes */
-        Route::get('get-products', [FlashSaleController::class, 'getProducts'])->name('flash-sales.get-products');
-        Route::resource('flash-sales', FlashSaleController::class);
+        if (class_exists(FlashSaleController::class)) {
+            Route::get('get-products', [FlashSaleController::class, 'getProducts'])->name('flash-sales.get-products');
+            Route::resource('flash-sales', FlashSaleController::class);
+        }
 
         /** Product Section Routes */
         Route::resource('product-sections', ProductSectionController::class);
 
         /** Reviews Routes */
-        Route::get('/reviews', [ReviewController::class, 'index'])->name('reviews.index');
-        Route::delete('/reviews/{review}', [ReviewController::class, 'destroy'])->name('reviews.destroy');
+        if (class_exists(ReviewController::class)) {
+            Route::get('/reviews', [ReviewController::class, 'index'])->name('reviews.index');
+            Route::delete('/reviews/{review}', [ReviewController::class, 'destroy'])->name('reviews.destroy');
+        }
 
         /** Newsletter Routes */
-        Route::get('/subscribers', [NewsletterController::class, 'index'])->name('subscribers.index');
-        Route::post('/newsletter', [NewsletterController::class, 'sendNewsletter'])->name('newsletter.send');
+        if (class_exists(NewsletterController::class)) {
+            Route::get('/subscribers', [NewsletterController::class, 'index'])->name('subscribers.index');
+            Route::post('/newsletter', [NewsletterController::class, 'sendNewsletter'])->name('newsletter.send');
+        }
 
         /** Contact Routes */
-        Route::resource('contact-settings', ContactSectionSettingController::class);
+        if (class_exists(ContactSectionSettingController::class)) {
+            Route::resource('contact-settings', ContactSectionSettingController::class);
+        }
         Route::get('/contact-messages', [ContactMessageController::class, 'index'])->name('contact-messages.index');
         Route::delete('/contact-messages/{contact_message}', [ContactMessageController::class, 'destroy'])->name('contact-messages.destroy');
 
         /** Custom Page Routes */
 
-        Route::resource('custom-pages', CustomPageController::class);
+        if (class_exists(CustomPageController::class)) {
+            Route::resource('custom-pages', CustomPageController::class);
+        }
 
         /** Banner ad Routes */
         Route::get('/banners', [BannerAdController::class, 'index'])->name('banners.index');
         Route::post('/banners', [BannerAdController::class, 'store'])->name('banners.store');
 
         /** Our Features Routes */
-        Route::resource('our-features', OurFeatureController::class);
+        if (class_exists(OurFeatureController::class)) {
+            Route::resource('our-features', OurFeatureController::class);
+        }
 
         /** Social Link Routes */
-        Route::resource('social-links', SocialLinkController::class);
+        if (class_exists(SocialLinkController::class)) {
+            Route::resource('social-links', SocialLinkController::class);
+        }
 
         /** Social Link Routes */
-        Route::resource('offer-sliders', OfferSliderController::class);
+        if (class_exists(OfferSliderController::class)) {
+            Route::resource('offer-sliders', OfferSliderController::class);
+        }
 
         /** Settings Routes */
-        Route::get('/settings', [SettingController::class, 'index'])->name('settings.index');
-        Route::put('/settings/general-settings', [SettingController::class, 'generalSettings'])->name('settings.general');
-        Route::get('/commission-settings', [SettingController::class, 'commissionSettingsIndex'])->name('commission-settings.index');
-        Route::put('/commission-settings', [SettingController::class, 'commissionSettings'])->name('commission-settings.store');
-        Route::get('/site-settings', [SettingController::class, 'siteSettingsIndex'])->name('site-settings.index');
-        Route::put('/site-settings', [SettingController::class, 'siteSettings'])->name('site-settings.store');
-        Route::get('/logo-settings', [SettingController::class, 'logoSettingsIndex'])->name('logo-settings.index');
-        Route::put('/logo-settings', [SettingController::class, 'logoSettings'])->name('logo-settings.store');
+        if (class_exists(SettingController::class)) {
+            Route::get('/settings', [SettingController::class, 'index'])->name('settings.index');
+            Route::put('/settings/general-settings', [SettingController::class, 'generalSettings'])->name('settings.general');
+            Route::get('/commission-settings', [SettingController::class, 'commissionSettingsIndex'])->name('commission-settings.index');
+            Route::put('/commission-settings', [SettingController::class, 'commissionSettings'])->name('commission-settings.store');
+            Route::get('/site-settings', [SettingController::class, 'siteSettingsIndex'])->name('site-settings.index');
+            Route::put('/site-settings', [SettingController::class, 'siteSettings'])->name('site-settings.store');
+            Route::get('/logo-settings', [SettingController::class, 'logoSettingsIndex'])->name('logo-settings.index');
+            Route::put('/logo-settings', [SettingController::class, 'logoSettings'])->name('logo-settings.store');
+        }
 
-        Route::get('/database-clear', [DatabaseClearController::class, 'index'])->name('database-clear.index');
-        Route::post('/database-clear', [DatabaseClearController::class, 'clearDatabase'])->name('database-clear');
+        if (class_exists(DatabaseClearController::class)) {
+            Route::get('/database-clear', [DatabaseClearController::class, 'index'])->name('database-clear.index');
+            Route::post('/database-clear', [DatabaseClearController::class, 'clearDatabase'])->name('database-clear');
+        }
     });

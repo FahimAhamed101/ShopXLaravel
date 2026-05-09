@@ -25,6 +25,7 @@ use Illuminate\Routing\Controllers\Middleware;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 
 class VendorProductController extends Controller
@@ -33,16 +34,18 @@ class VendorProductController extends Controller
 
     function index(): View
     {
-        $products = Product::where('store_id', user()->store->id)->latest()->paginate(30);
+        $products = $this->vendorProductsQuery()->latest()->paginate(30);
         return view('vendor-dashboard.product.index', compact('products'));
     }
 
-    function create(): View
+    function create(string $type): View
     {
-        $stores = Store::select(['name', 'id'])->get();
-        $brands = Brand::select(['name', 'id'])->where('is_active', 1)->get();
-        $tags = Tag::where('is_active', 1)->get();
-        $categories = Category::getNested();
+        abort_unless(in_array($type, ['physical', 'digital']), 404);
+
+        $stores = $this->availableStores();
+        $brands = $this->availableBrands();
+        $tags = $this->availableTags();
+        $categories = $this->nestedCategories();
         return view('vendor-dashboard.product.create', compact('stores', 'brands', 'tags', 'categories'));
     }
 
@@ -67,18 +70,22 @@ class VendorProductController extends Controller
         $product->in_stock = $request->stock_status == 'in_stock' ? 1 : 0;
         $product->status = $request->status;
         $product->approved_status = 'pending';
-        $product->store_id = user()->store->id;
         $product->brand_id = $request->brand;
         $product->is_featured = $request->has('is_featured') ? 1 : 0;
         $product->is_hot = $request->has('is_hot') ? 1 : 0;
         $product->is_new = $request->has('is_new') ? 1 : 0;
+        $this->assignVendorOwnership($product);
         $product->save();
 
         /** Attach categories */
-        $product->categories()->sync($request->categories);
+        if ($this->productCategorySyncReady()) {
+            $product->categories()->sync($request->categories ?? []);
+        }
 
         /** Attach tags */
-        $product->tags()->sync($request->tags);
+        if ($this->productTagSyncReady()) {
+            $product->tags()->sync($request->tags ?? []);
+        }
 
         if ($type == 'physical') {
             return response()->json([
@@ -102,14 +109,14 @@ class VendorProductController extends Controller
     {
 
         $product = Product::findOrFail($id);
-        if($product->store_id !== user()->store->id) abort(404);
+        $this->ensureVendorOwnsProduct($product);
 
-        $productCategoryIds = $product->categories->pluck('id')->toArray();
-        $productTagIds = $product->tags->pluck('id')->toArray();
-        $stores = Store::select(['name', 'id'])->get();
-        $brands = Brand::select(['name', 'id'])->where('is_active', 1)->get();
-        $tags = Tag::where('is_active', 1)->get();
-        $categories = Category::getNested();
+        $productCategoryIds = $this->productCategorySyncReady() ? $product->categories->pluck('id')->toArray() : [];
+        $productTagIds = $this->productTagSyncReady() ? $product->tags->pluck('id')->toArray() : [];
+        $stores = $this->availableStores();
+        $brands = $this->availableBrands();
+        $tags = $this->availableTags();
+        $categories = $this->nestedCategories();
 
         $attributesWithValues = $product?->attributeWithValues ?? [];
         $variants = $product?->variants ?? [];
@@ -122,15 +129,15 @@ class VendorProductController extends Controller
 
         $product = Product::findOrFail($id);
         if ($product->product_type != 'digital') abort(404);
-        if($product->store_id !== user()->store->id) abort(404);
+        $this->ensureVendorOwnsProduct($product);
 
         // dd($product->attributes);
-        $productCategoryIds = $product->categories->pluck('id')->toArray();
-        $productTagIds = $product->tags->pluck('id')->toArray();
-        $stores = Store::select(['name', 'id'])->get();
-        $brands = Brand::select(['name', 'id'])->where('is_active', 1)->get();
-        $tags = Tag::where('is_active', 1)->get();
-        $categories = Category::getNested();
+        $productCategoryIds = $this->productCategorySyncReady() ? $product->categories->pluck('id')->toArray() : [];
+        $productTagIds = $this->productTagSyncReady() ? $product->tags->pluck('id')->toArray() : [];
+        $stores = $this->availableStores();
+        $brands = $this->availableBrands();
+        $tags = $this->availableTags();
+        $categories = $this->nestedCategories();
 
         return view('vendor-dashboard.product.digital-edit', compact('stores', 'brands', 'tags', 'categories', 'product', 'productCategoryIds', 'productTagIds'));
     }
@@ -138,7 +145,7 @@ class VendorProductController extends Controller
     function uploadDigitalProductFile(Request $request)
     {
         $product = Product::findOrFail($request->product_id);
-        if($product->store_id !== user()->store->id) abort(404);
+        $this->ensureVendorOwnsProduct($product);
 
         $file = $request->file('file');
         $chunkIndex = $request->dzchunkindex;
@@ -265,7 +272,7 @@ class VendorProductController extends Controller
     {
         try {
             $product = Product::findOrFail($productId);
-            if($product->store_id !== user()->store->id) abort(404);
+            $this->ensureVendorOwnsProduct($product);
 
             $productFile = ProductFile::where('id', $id)->where('product_id', $productId)->firstOrFail();
             // delete from storage
@@ -283,7 +290,7 @@ class VendorProductController extends Controller
     function update(ProductUpdateRequest $request, int $id)
     {
         $product = Product::findOrFail($id);
-        if($product->store_id !== user()->store->id) abort(404);
+        $this->ensureVendorOwnsProduct($product);
 
         $product->name = $request->name;
         $product->slug = $request->slug;
@@ -298,18 +305,22 @@ class VendorProductController extends Controller
         $product->manage_stock = $request->has('manage_stock') ? 'yes' : 'no';
         $product->in_stock = $request->stock_status == 'in_stock' ? 1 : 0;
         $product->status = $request->status;
-        $product->store_id = user()->store->id;
         $product->brand_id = $request->brand;
         $product->is_featured = $request->has('is_featured') ? 1 : 0;
         $product->is_hot = $request->has('is_hot') ? 1 : 0;
         $product->is_new = $request->has('is_new') ? 1 : 0;
+        $this->assignVendorOwnership($product);
         $product->save();
 
         /** Attach categories */
-        $product->categories()->sync($request->categories);
+        if ($this->productCategorySyncReady()) {
+            $product->categories()->sync($request->categories ?? []);
+        }
 
         /** Attach tags */
-        $product->tags()->sync($request->tags);
+        if ($this->productTagSyncReady()) {
+            $product->tags()->sync($request->tags ?? []);
+        }
 
         AlertService::created();
 
@@ -323,7 +334,7 @@ class VendorProductController extends Controller
 
     function uploadImages(Request $request, Product $product)
     {
-        if($product->store_id !== user()->store->id) abort(404);
+        $this->ensureVendorOwnsProduct($product);
 
         $request->validate([
             'file' => ['required', 'image', 'max:3048']
@@ -349,7 +360,7 @@ class VendorProductController extends Controller
     {
         $image = ProductImage::findOrFail($id);
         $product = Product::findOrFail($image->product_id);
-        if($product->store_id !== user()->store->id) abort(404);
+        $this->ensureVendorOwnsProduct($product);
 
         $this->deleteFile($image->path);
         $image->delete();
@@ -366,7 +377,7 @@ class VendorProductController extends Controller
 
     function storeAttributes(Request $request, Product $product)
     {
-        if($product->store_id !== user()->store->id) abort(404);
+        $this->ensureVendorOwnsProduct($product);
 
         $request->validate([
             'attribute_name' => ['required', 'string', 'max:255'],
@@ -397,7 +408,7 @@ class VendorProductController extends Controller
 
     function createNewAttribute(Request $request, Product $product)
     {
-        if($product->store_id !== user()->store->id) abort(404);
+        $this->ensureVendorOwnsProduct($product);
 
         $attribute = new Attribute();
         $attribute->name = $request->attribute_name;
@@ -409,7 +420,7 @@ class VendorProductController extends Controller
 
     function updateExistingAttribute(Request $request, Product $product)
     {
-        if($product->store_id !== user()->store->id) abort(404);
+        $this->ensureVendorOwnsProduct($product);
 
         $attribute = Attribute::findOrFail($request->attribute_id);
         $attribute->name = $request->attribute_name;
@@ -425,7 +436,7 @@ class VendorProductController extends Controller
 
     function clearAttributeData(Attribute $attribute, Product $product)
     {
-        if($product->store_id !== user()->store->id) abort(404);
+        $this->ensureVendorOwnsProduct($product);
 
         DB::table('product_attribute_values')
             ->where('product_id', $product->id)
@@ -437,7 +448,7 @@ class VendorProductController extends Controller
 
     function addAttributesValue(Attribute $attribute, Request $request, Product $product)
     {
-        if($product->store_id !== user()->store->id) abort(404);
+        $this->ensureVendorOwnsProduct($product);
 
         $labels = $request->label ?? [];
 
@@ -461,7 +472,7 @@ class VendorProductController extends Controller
 
     function buildSuccessResponse(Product $product)
     {
-        if($product->store_id !== user()->store->id) abort(404);
+        $this->ensureVendorOwnsProduct($product);
 
         $product->refresh();
 
@@ -491,7 +502,7 @@ class VendorProductController extends Controller
     {
         try {
             $product = Product::findOrFail($productId);
-            if($product->store_id !== user()->store->id) abort(404);
+            $this->ensureVendorOwnsProduct($product);
 
             $attribute = Attribute::findOrFail($attributeId);
 
@@ -529,7 +540,7 @@ class VendorProductController extends Controller
 
     function regenerateProductVariants(Product $product)
     {
-        if($product->store_id !== user()->store->id) abort(404);
+        $this->ensureVendorOwnsProduct($product);
 
         // clear existing variants
         $this->clearExistingVariants($product);
@@ -549,7 +560,7 @@ class VendorProductController extends Controller
 
     function getAttributeGroups(Product $product)
     {
-        if($product->store_id !== user()->store->id) abort(404);
+        $this->ensureVendorOwnsProduct($product);
 
         $groupedAttributes = DB::table('product_attribute_values')
             ->where('product_id', $product->id)
@@ -659,8 +670,7 @@ class VendorProductController extends Controller
 
     function destroy(Product $product)
     {
-
-        if (Auth::user()->store->id == $product->store_id) {
+        if ($this->productBelongsToVendor($product)) {
             $product->delete();
             notyf()->success('Product deleted successfully');
             return response()->json(['status' => 'success', 'message' => 'Product deleted successfully']);
@@ -668,5 +678,157 @@ class VendorProductController extends Controller
 
         notyf()->error('You do not have permission to delete this product');
         return response()->json(['status' => 'error', 'message' => 'You do not have permission to delete this product']);
+    }
+
+    protected function vendorProductsQuery()
+    {
+        $query = Product::query();
+        $vendorId = auth('web')->id();
+
+        if (! $vendorId) {
+            return $query->whereRaw('1 = 0');
+        }
+
+        foreach (['vendor_id', 'user_id'] as $column) {
+            if (Schema::hasColumn('products', $column)) {
+                return $query->where($column, $vendorId);
+            }
+        }
+
+        if (Schema::hasColumn('products', 'store_id')) {
+            $storeId = $this->vendorStoreId();
+
+            return $storeId
+                ? $query->where('store_id', $storeId)
+                : $query->whereRaw('1 = 0');
+        }
+
+        return $query->whereRaw('1 = 0');
+    }
+
+    protected function availableStores(): Collection
+    {
+        if (! class_exists(Store::class) || ! Schema::hasTable('stores')) {
+            return collect();
+        }
+
+        if (! Schema::hasColumn('stores', 'name')) {
+            return collect();
+        }
+
+        return Store::query()->select(['name', 'id'])->get();
+    }
+
+    protected function availableBrands(): Collection
+    {
+        if (! class_exists(Brand::class) || ! Schema::hasTable('brands') || ! Schema::hasColumn('brands', 'name')) {
+            return collect();
+        }
+
+        $query = Brand::query()->select(['name', 'id']);
+
+        if (Schema::hasColumn('brands', 'is_active')) {
+            $query->where('is_active', 1);
+        }
+
+        return $query->get();
+    }
+
+    protected function availableTags(): Collection
+    {
+        if (! class_exists(Tag::class) || ! Schema::hasTable('tags')) {
+            return collect();
+        }
+
+        $query = Tag::query();
+
+        if (Schema::hasColumn('tags', 'is_active')) {
+            $query->where('is_active', 1);
+        }
+
+        return $query->get();
+    }
+
+    protected function nestedCategories(): Collection
+    {
+        return tableHasColumns('categories', ['parent_id']) ? Category::getNested() : collect();
+    }
+
+    protected function productCategorySyncReady(): bool
+    {
+        return Schema::hasTable('category_product');
+    }
+
+    protected function productTagSyncReady(): bool
+    {
+        return Schema::hasTable('product_tag');
+    }
+
+    protected function assignVendorOwnership(Product $product): void
+    {
+        $vendorId = auth('web')->id();
+
+        if (! $vendorId) {
+            return;
+        }
+
+        if (Schema::hasColumn('products', 'vendor_id')) {
+            $product->vendor_id = $vendorId;
+        }
+
+        if (Schema::hasColumn('products', 'user_id')) {
+            $product->user_id = $vendorId;
+        }
+
+        if (Schema::hasColumn('products', 'store_id')) {
+            $storeId = $this->vendorStoreId();
+
+            if ($storeId) {
+                $product->store_id = $storeId;
+            }
+        }
+    }
+
+    protected function ensureVendorOwnsProduct(Product $product): void
+    {
+        abort_unless($this->productBelongsToVendor($product), 404);
+    }
+
+    protected function productBelongsToVendor(Product $product): bool
+    {
+        $vendorId = auth('web')->id();
+
+        if (! $vendorId) {
+            return false;
+        }
+
+        foreach (['vendor_id', 'user_id'] as $column) {
+            if (Schema::hasColumn('products', $column) && (int) ($product->{$column} ?? 0) === (int) $vendorId) {
+                return true;
+            }
+        }
+
+        if (Schema::hasColumn('products', 'store_id')) {
+            $storeId = $this->vendorStoreId();
+
+            return $storeId !== null && (int) ($product->store_id ?? 0) === $storeId;
+        }
+
+        return false;
+    }
+
+    protected function vendorStoreId(): ?int
+    {
+        $vendorId = auth('web')->id();
+
+        if (! $vendorId || ! class_exists(Store::class) || ! Schema::hasTable('stores')) {
+            return null;
+        }
+
+        if (! Schema::hasColumn('stores', 'seller_id')) {
+            return null;
+        }
+
+        return DB::table('stores')->where('seller_id', $vendorId)->value('id');
     }
 }

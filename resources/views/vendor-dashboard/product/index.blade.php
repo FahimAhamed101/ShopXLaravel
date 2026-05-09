@@ -136,7 +136,7 @@
                                         @endif
                                     </td>
                                     <td>
-                                        {{ $product->store->name }}
+                                        {{ $product->store?->name ?? user()?->shop_name ?? user()?->store_name ?? 'Store not set' }}
                                     </td>
                                     <td>
                                         @if($product->product_type == 'physical')

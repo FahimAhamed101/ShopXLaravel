@@ -1,6 +1,11 @@
 @extends('frontend.layouts.app')
 
 @section('contents')
+    @php
+        $store = $product->store ?? null;
+        $reviewsAverage = $product->reviews_avg_rating ?? 0;
+        $reviewsCount = $product->reviews_count ?? 0;
+    @endphp
     <x-frontend.breadcrumb :items="[['label' => 'Home', 'url' => '/'], ['label' => 'Products']]" />
     <div class="container mb-30">
         <div class="row">
@@ -34,9 +39,9 @@
                                 <div class="product-detail-rating">
                                     <div class="product-rate-cover text-end">
                                         <div class="product-rate d-inline-block">
-                                            <div class="product-rating" style="width: {{ ratingPercent($product->reviews_avg_rating) }}%"></div>
+                                            <div class="product-rating" style="width: {{ ratingPercent($reviewsAverage) }}%"></div>
                                         </div>
-                                        <span class="font-small ml-5 text-muted"> ({{ $product->reviews_count }} reviews)</span>
+                                        <span class="font-small ml-5 text-muted"> ({{ $reviewsCount }} reviews)</span>
                                     </div>
                                 </div>
                                 <div class="clearfix product-price-cover">
@@ -169,7 +174,7 @@
                                 </li>
                                 <li class="nav-item">
                                     <a class="nav-link" id="Reviews-tab" data-bs-toggle="tab" href="#Reviews">Reviews
-                                        ({{ $product->reviews_count }})</a>
+                                        ({{ $reviewsCount }})</a>
                                 </li>
                             </ul>
                             <div class="tab-content shop_info_tab entry-main-content">
@@ -180,40 +185,44 @@
                                 </div>
 
                                 <div class="tab-pane fade" id="Vendor-info">
-                                    <div class="vendor-logo d-flex mb-30 align-items-center">
-                                        <img src="{{ asset($product->store->logo) }}" alt="" />
-                                        <div class="vendor-name ml-15">
-                                            <h6>
-                                                <a href="vendor-details-2.html">{{ $product->store->name }}</a>
-                                            </h6>
-                                            <div class="product-rate-cover text-end">
-                                                <div class="product-rate d-inline-block">
-                                                    <div class="product-rating" style="width: 90%"></div>
+                                    @if ($store)
+                                        <div class="vendor-logo d-flex mb-30 align-items-center">
+                                            <img src="{{ asset($store->logo) }}" alt="" />
+                                            <div class="vendor-name ml-15">
+                                                <h6>
+                                                    <a href="vendor-details-2.html">{{ $store->name }}</a>
+                                                </h6>
+                                                <div class="product-rate-cover text-end">
+                                                    <div class="product-rate d-inline-block">
+                                                        <div class="product-rating" style="width: 90%"></div>
+                                                    </div>
+                                                    <span class="font-small ml-5 text-muted"> (32 reviews)</span>
                                                 </div>
-                                                <span class="font-small ml-5 text-muted"> (32 reviews)</span>
                                             </div>
                                         </div>
-                                    </div>
-                                    <ul class="contact-infor mb-50">
-                                        @if ($product->store->address)
-                                            <li><img src="{{ asset('assets/frontend/dist/imgs/theme/icons/icon-location.svg') }}"
-                                                    alt="" /><strong>Address: </strong>
-                                                <span>{{ $product->store->address }}</span>
-                                            </li>
-                                        @endif
-                                        @if ($product->store->phone)
-                                            <li><img src="{{ asset('assets/frontend/dist/imgs/theme/icons/icon-contact.svg') }}"
-                                                    alt="" /><strong>Phone:</strong><span>
-                                                    {{ $product->store->phone }} </span></li>
-                                        @endif
-                                        @if ($product->store->email)
-                                            <li><img src="{{ asset('assets/frontend/dist/imgs/theme/icons/icon-contact.svg') }}"
-                                                    alt="" /><strong>Phone:</strong><span>
-                                                    {{ $product->store->email }} </span></li>
-                                        @endif
-                                    </ul>
+                                        <ul class="contact-infor mb-50">
+                                            @if ($store->address)
+                                                <li><img src="{{ asset('assets/frontend/dist/imgs/theme/icons/icon-location.svg') }}"
+                                                        alt="" /><strong>Address: </strong>
+                                                    <span>{{ $store->address }}</span>
+                                                </li>
+                                            @endif
+                                            @if ($store->phone)
+                                                <li><img src="{{ asset('assets/frontend/dist/imgs/theme/icons/icon-contact.svg') }}"
+                                                        alt="" /><strong>Phone:</strong><span>
+                                                        {{ $store->phone }} </span></li>
+                                            @endif
+                                            @if ($store->email)
+                                                <li><img src="{{ asset('assets/frontend/dist/imgs/theme/icons/icon-contact.svg') }}"
+                                                        alt="" /><strong>Phone:</strong><span>
+                                                        {{ $store->email }} </span></li>
+                                            @endif
+                                        </ul>
 
-                                    <p>{{ $product->store->short_description }}</p>
+                                        <p>{{ $store->short_description }}</p>
+                                    @else
+                                        <div class="alert alert-warning mb-0">Vendor information is not available for this product yet.</div>
+                                    @endif
                                 </div>
                                 <div class="tab-pane fade" id="Reviews">
                                     <!--Comments-->

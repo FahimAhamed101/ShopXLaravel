@@ -33,7 +33,7 @@
                                             </tr>
                                             <tr>
                                                 <td>Store Name</td>
-                                                <td>{{ $product->store->name }}</td>
+                                                <td>{{ $product->store?->name ?? 'ShopX' }}</td>
                                             </tr>
                                         </table>
 

@@ -24,7 +24,7 @@
                             @forelse($withdrawMethods as $method)
                                 <tr>
                                     <td>{{ $loop->iteration }}</td>
-                                    <td>{{ $method->withdrawMethod->name }}</td>
+                                    <td>{{ $method->withdrawMethod?->name ?? 'Manual' }}</td>
                                     <td>{{ date('Y-m-d', strtotime($method->created_at)) }}</td>
                                     <td>
                                         <a href="{{ route('vendor.withdraw-methods.edit', $method) }}"

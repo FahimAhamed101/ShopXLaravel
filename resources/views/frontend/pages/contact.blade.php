@@ -2,7 +2,10 @@
 
 @section('contents')
 @php
-    $contactSection = \App\Models\ContactSectionSetting::first();
+    $contactSection = class_exists(\App\Models\ContactSectionSetting::class)
+        && \Illuminate\Support\Facades\Schema::hasTable((new \App\Models\ContactSectionSetting())->getTable())
+            ? \App\Models\ContactSectionSetting::query()->first()
+            : null;
 @endphp
     <x-frontend.breadcrumb :items="[['label' => 'Home', 'url' => '/'], ['label' => 'Contact']]" />
     <div class="page-content pt-70">

@@ -32,13 +32,13 @@
                                         <div class="col-xl-3 col-sm-6 col-lg-3">
                                             <div class="wsus__track_header_single">
                                                 <h5>Purchased by:</h5>
-                                                <p>{{ $order->user->name }}</p>
+                                                <p>{{ $order->user?->name ?? 'Guest' }}</p>
                                             </div>
                                         </div>
                                         <div class="col-xl-3 col-sm-6 col-lg-3">
                                             <div class="wsus__track_header_single">
                                                 <h5>Store:</h5>
-                                                <p>{{ $order->store->name }}</p>
+                                                <p>{{ $order->store?->name ?? 'ShopX' }}</p>
                                             </div>
                                         </div>
                                         <div class="col-xl-3 col-sm-6 col-lg-3">

@@ -45,6 +45,15 @@ class Category extends Model
         return $this->children()->with('childrenNested');
     }
 
+    public function getChildrenNestedAttribute(): Collection
+    {
+        if ($this->relationLoaded('childrenNested')) {
+            return $this->getRelation('childrenNested');
+        }
+
+        return $this->childrenNested()->get();
+    }
+
     public function products(): BelongsToMany
     {
         return $this->belongsToMany(Product::class);

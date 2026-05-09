@@ -1,0 +1,26 @@
+<?php
+
+return [
+    'site_logo' => '/assets/frontend/dist/imgs/theme/logo.svg',
+    'site_phone' => '+1 (555) 123-4567',
+    'site_currency' => 'USD',
+    'site_currency_icon' => '$',
+    'site_copyright' => 'ShopX',
+    'paypal_status' => 'inactive',
+    'paypal_mode' => 'sandbox',
+    'paypal_currency' => 'USD',
+    'paypal_rate' => 1,
+    'paypal_client_id' => '',
+    'paypal_secret' => '',
+    'stripe_status' => 'inactive',
+    'stripe_mode' => 'sandbox',
+    'stripe_currency' => 'USD',
+    'stripe_rate' => 1,
+    'stripe_client_id' => '',
+    'stripe_secret' => '',
+    'razorpay_status' => 'inactive',
+    'razorpay_currency' => 'INR',
+    'razorpay_rate' => 1,
+    'razorpay_client_id' => '',
+    'razorpay_secret' => '',
+];

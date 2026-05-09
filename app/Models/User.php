@@ -4,8 +4,11 @@ namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Facades\Schema;
 
 class User extends Authenticatable
 {
@@ -45,5 +48,40 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
         ];
+    }
+
+    public function kyc(): HasOne
+    {
+        return $this->hasOne(Kyc::class);
+    }
+
+    public function store(): HasOne
+    {
+        return $this->hasOne(Store::class, 'seller_id');
+    }
+
+    public function addresses(): HasMany
+    {
+        $relation = $this->hasMany(Address::class);
+
+        if (Schema::hasColumn('addresses', 'is_default')) {
+            $relation->orderByDesc('is_default');
+        }
+
+        return $relation->latest('id');
+    }
+
+    public function products(): HasMany
+    {
+        if (Schema::hasColumn('products', 'vendor_id')) {
+            return $this->hasMany(Product::class, 'vendor_id');
+        }
+
+        return $this->hasMany(Product::class);
+    }
+
+    public function getAvatarAttribute($value): string
+    {
+        return $value ?: '/defaults/avatar.png';
     }
 }

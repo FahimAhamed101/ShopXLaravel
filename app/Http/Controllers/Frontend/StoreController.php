@@ -8,7 +8,7 @@ use App\Services\AlertService;
 use App\Traits\FileUploadTrait;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\Request;
-use Illuminate\Support\Composer;
+use Illuminate\Support\Facades\Schema;
 
 class StoreController extends Controller
 {
@@ -59,6 +59,8 @@ class StoreController extends Controller
      */
     public function update(Request $request, string $id)
     {
+        abort_unless(Schema::hasTable('stores'), 404);
+
         $request->validate([
             'logo' => ['nullable', 'image', 'max:2048'],
             'banner' => ['nullable', 'image', 'max:2048'],

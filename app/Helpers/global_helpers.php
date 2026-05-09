@@ -46,7 +46,7 @@ if (!function_exists('hasPermission')) {
 if (!function_exists('user')) {
     function user(): User | null
     {
-        return Auth::user('web');
+        return Auth::guard('web')->user();
     }
 }
 
@@ -98,6 +98,7 @@ if (!function_exists('cartTotal')) {
         if (
             !user() ||
             !class_exists(Cart::class) ||
+            !tableHasColumns('products', ['id']) ||
             !tableHasColumns('carts', ['user_id', 'product_id', 'variant_id', 'quantity']) ||
             !method_exists(Cart::class, 'product')
         ) {
@@ -149,7 +150,7 @@ if (!function_exists('getPayableAmount')) {
         $cartDiscount = cartDiscount();
         $shippingCharge = 0;
         if (Session::has('billing_info') && class_exists(ShippingRule::class) && tableHasColumns('shipping_rules', ['charge'])) {
-            $shippingCharge = ShippingRule::find(Session::get('billing_info')['shipping_method_id'])->charge;
+            $shippingCharge = ShippingRule::find(Session::get('billing_info')['shipping_method_id'])?->charge ?? 0;
         }
 
         return round(($cartTotal + $shippingCharge) - $cartDiscount, 2);
@@ -160,7 +161,7 @@ if (!function_exists('getShippingCharge')) {
     {
 
         if (Session::has('billing_info') && class_exists(ShippingRule::class) && tableHasColumns('shipping_rules', ['charge'])) {
-            return ShippingRule::find(Session::get('billing_info')['shipping_method_id'])->charge;
+            return ShippingRule::find(Session::get('billing_info')['shipping_method_id'])?->charge ?? 0;
         }
 
         return 0;

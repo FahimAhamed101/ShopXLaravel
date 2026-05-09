@@ -6,6 +6,8 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Str;
 
 class Admin extends Authenticatable
 {
@@ -44,5 +46,40 @@ class Admin extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
         ];
+    }
+
+    public function hasRole(string|array $roles): bool
+    {
+        $roles = collect(is_array($roles) ? $roles : [$roles])
+            ->flatMap(fn (string $role) => explode('|', $role))
+            ->map(fn (string $role) => strtolower(trim($role)))
+            ->filter()
+            ->values();
+
+        if ($roles->isEmpty()) {
+            return false;
+        }
+
+        if ($roles->contains('admin')) {
+            return true;
+        }
+
+        return $roles->contains('super admin') && $this->isSuperAdmin();
+    }
+
+    public function hasAnyPermission(array|string $permissions): bool
+    {
+        return true;
+    }
+
+    public function getRoleNames(): Collection
+    {
+        return collect([$this->isSuperAdmin() ? 'Super Admin' : 'Admin']);
+    }
+
+    protected function isSuperAdmin(): bool
+    {
+        return Str::lower((string) $this->email) === 'admin@gmail.com'
+            || Str::lower((string) $this->name) === 'super admin';
     }
 }

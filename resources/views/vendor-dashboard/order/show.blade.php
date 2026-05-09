@@ -157,12 +157,12 @@
                     <div class="container-xl d-print-none">
                         <div class="card col-md-4 mb-5  ">
                         <div class="card-body">
-                            <form action="{{ route('admin.orders.update', $order) }}" method="POST">
+                            <form action="{{ route('vendor.orders.update', $order) }}" method="POST">
                                 @csrf
                                 <div class="form-group mb-2">
                                     <label for="">Order Status</label>
                                     <select name="order_status" id="" class="form-control">
-                                        @foreach(config('order_status') as $key => $status)
+                                        @foreach(collect(config('order_status', [])) as $key => $status)
                                         @if(in_array($key, ['pending', 'processing', 'packed', 'shipped']))
                                         <option @selected($order->order_status == $key) value="{{ $key }}">{{ str_replace('_', ' ', $key) }}</option>
                                         @endif

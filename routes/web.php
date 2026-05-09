@@ -1,6 +1,5 @@
 <?php
 
-use App\Http\Controllers\Admin\PaymentSettingController;
 use App\Http\Controllers\Frontend\AddressController;
 use App\Http\Controllers\Frontend\CartController;
 use App\Http\Controllers\Frontend\CheckoutController;
@@ -19,7 +18,6 @@ use App\Http\Controllers\Frontend\StoreWithdrawRequestController;
 use App\Http\Controllers\Frontend\UserOrderController;
 use App\Http\Controllers\Frontend\UserPurchasedProductsController;
 use App\Http\Controllers\Frontend\UserTrackOrderController;
-use App\Http\Controllers\Frontend\VendorDahboardController;
 use App\Http\Controllers\Frontend\VendorDashboardController;
 use App\Http\Controllers\Frontend\VendorPageController;
 use App\Http\Controllers\Frontend\VendorProductController;

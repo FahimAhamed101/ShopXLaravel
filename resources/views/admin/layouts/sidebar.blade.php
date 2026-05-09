@@ -1,3 +1,9 @@
+@php
+    $adminRoute = fn (string $name, array $parameters = []) => \Illuminate\Support\Facades\Route::has($name)
+        ? route($name, $parameters)
+        : '#';
+@endphp
+
 <aside class="navbar navbar-vertical navbar-expand-lg d-print-none" data-bs-theme="dark">
     <div class="container-fluid">
         <!-- BEGIN NAVBAR TOGGLER -->
@@ -285,7 +291,7 @@
                                 @if (hasPermission(['Tags Management']))
                                     <div class="dropdown-menu-column">
                                         <a class="dropdown-item {{ setActive(['admin.tags.*']) }}"
-                                            href="{{ route('admin.tags.index') }}">
+                                            href="{{ $adminRoute('admin.tags.index') }}">
                                             Products Tags
                                         </a>
                                     </div>
@@ -306,7 +312,7 @@
                                 @if (hasPermission(['Brand Management']))
                                     <div class="dropdown-menu-column">
                                         <a class="dropdown-item {{ setActive(['admin.reviews.*']) }}"
-                                            href="{{ route('admin.reviews.index') }}">
+                                            href="{{ $adminRoute('admin.reviews.index') }}">
                                             Reviews
                                         </a>
                                     </div>
@@ -329,59 +335,59 @@
                         <div class="dropdown-menu {{ setActive(['admin.orders.*'], 'show') }}">
                             <div class="dropdown-menu-columns">
                                 <div class="dropdown-menu-column">
-                                    <a class="dropdown-item" href="{{ route('admin.orders.index') }}">
+                                    <a class="dropdown-item" href="{{ $adminRoute('admin.orders.index') }}">
                                         All Orders
                                     </a>
                                 </div>
                                 <div class="dropdown-menu-column">
                                     <a class="dropdown-item"
-                                        href="{{ route('admin.orders.index', ['status' => 'pending']) }}">
+                                        href="{{ $adminRoute('admin.orders.index', ['status' => 'pending']) }}">
                                         Pending Orders
                                     </a>
                                 </div>
 
                                 <div class="dropdown-menu-column">
                                     <a class="dropdown-item"
-                                        href="{{ route('admin.orders.index', ['status' => 'processed']) }}">
+                                        href="{{ $adminRoute('admin.orders.index', ['status' => 'processed']) }}">
                                         Processed Orders
                                     </a>
                                 </div>
 
                                 <div class="dropdown-menu-column">
                                     <a class="dropdown-item"
-                                        href="{{ route('admin.orders.index', ['status' => 'packed']) }}">
+                                        href="{{ $adminRoute('admin.orders.index', ['status' => 'packed']) }}">
                                         Packed Orders
                                     </a>
                                 </div>
 
                                 <div class="dropdown-menu-column">
                                     <a class="dropdown-item"
-                                        href="{{ route('admin.orders.index', ['status' => 'shipped']) }}">
+                                        href="{{ $adminRoute('admin.orders.index', ['status' => 'shipped']) }}">
                                         Shipped Orders
                                     </a>
                                 </div>
 
                                 <div class="dropdown-menu-column">
                                     <a class="dropdown-item"
-                                        href="{{ route('admin.orders.index', ['status' => 'in_transit']) }}">
+                                        href="{{ $adminRoute('admin.orders.index', ['status' => 'in_transit']) }}">
                                         In Transit
                                     </a>
                                 </div>
                                 <div class="dropdown-menu-column">
                                     <a class="dropdown-item"
-                                        href="{{ route('admin.orders.index', ['status' => 'out_for_delivery']) }}">
+                                        href="{{ $adminRoute('admin.orders.index', ['status' => 'out_for_delivery']) }}">
                                         Out For Delivery
                                     </a>
                                 </div>
                                 <div class="dropdown-menu-column">
                                     <a class="dropdown-item"
-                                        href="{{ route('admin.orders.index', ['status' => 'delivered']) }}">
+                                        href="{{ $adminRoute('admin.orders.index', ['status' => 'delivered']) }}">
                                         Delivered
                                     </a>
                                 </div>
                                 <div class="dropdown-menu-column">
                                     <a class="dropdown-item"
-                                        href="{{ route('admin.orders.index', ['status' => 'canceled']) }}">
+                                        href="{{ $adminRoute('admin.orders.index', ['status' => 'canceled']) }}">
                                         Canceled
                                     </a>
                                 </div>
@@ -405,19 +411,19 @@
                             <div class="dropdown-menu-columns">
                                 <div class="dropdown-menu-column">
                                     <a class="dropdown-item {{ setActive(['admin.flash-sales.*']) }}"
-                                        href="{{ route('admin.flash-sales.index') }}">
+                                        href="{{ $adminRoute('admin.flash-sales.index') }}">
                                         Flash Sales
                                     </a>
                                 </div>
                                 <div class="dropdown-menu-column">
                                     <a class="dropdown-item {{ setActive(['admin.coupons.*']) }}"
-                                        href="{{ route('admin.coupons.index') }}">
+                                        href="{{ $adminRoute('admin.coupons.index') }}">
                                         Coupons
                                     </a>
                                 </div>
                                 <div class="dropdown-menu-column">
                                     <a class="dropdown-item {{ setActive(['admin.shipping-rules.*']) }}"
-                                        href="{{ route('admin.shipping-rules.index') }}">
+                                        href="{{ $adminRoute('admin.shipping-rules.index') }}">
                                         Shipping Rules
                                     </a>
                                 </div>
@@ -442,20 +448,20 @@
 
                                 <div class="dropdown-menu-column">
                                     <a class="dropdown-item {{ setActive(['admin.offer-sliders.*']) }}"
-                                        href="{{ route('admin.offer-sliders.index') }}">
+                                        href="{{ $adminRoute('admin.offer-sliders.index') }}">
                                         Offer Slider
                                     </a>
                                 </div>
 
                                 <div class="dropdown-menu-column">
                                     <a class="dropdown-item {{ setActive(['admin.sliders.*']) }}"
-                                        href="{{ route('admin.sliders.index') }}">
+                                        href="{{ $adminRoute('admin.sliders.index') }}">
                                         Sliders
                                     </a>
                                 </div>
                                 <div class="dropdown-menu-column">
                                     <a class="dropdown-item {{ setActive(['admin.hero-banners.*']) }}"
-                                        href="{{ route('admin.hero-banners.index') }}">
+                                        href="{{ $adminRoute('admin.hero-banners.index') }}">
                                         Hero Banners
                                     </a>
                                 </div>
@@ -475,14 +481,14 @@
 
                                 <div class="dropdown-menu-column">
                                     <a class="dropdown-item {{ setActive(['admin.our-features.*']) }}"
-                                        href="{{ route('admin.our-features.index') }}">
+                                        href="{{ $adminRoute('admin.our-features.index') }}">
                                         Our Features
                                     </a>
                                 </div>
 
                                 <div class="dropdown-menu-column">
                                     <a class="dropdown-item {{ setActive(['admin.social-links.*']) }}"
-                                        href="{{ route('admin.social-links.index') }}">
+                                        href="{{ $adminRoute('admin.social-links.index') }}">
                                         Social Links
                                     </a>
                                 </div>
@@ -494,7 +500,7 @@
                 @if (hasPermission(['Subscriber Management']))
                     <li class="nav-item">
                         <a class="nav-link {{ setActive(['admin.subscribers.*']) }}"
-                            href="{{ route('admin.subscribers.index') }}">
+                            href="{{ $adminRoute('admin.subscribers.index') }}">
                             <span class="nav-link-icon d-md-none d-lg-inline-block"><i class="ti ti-news"></i></span>
                             <span class="nav-link-title"> Subscribers </span>
                         </a>
@@ -517,14 +523,14 @@
                             <div class="dropdown-menu-columns">
                                 <div class="dropdown-menu-column">
                                     <a class="dropdown-item {{ setActive(['admin.withdraw-methods.*']) }}"
-                                        href="{{ route('admin.withdraw-methods.index') }}">
+                                        href="{{ $adminRoute('admin.withdraw-methods.index') }}">
                                         Withdraw Methods
                                     </a>
                                 </div>
 
                                 <div class="dropdown-menu-column">
                                     <a class="dropdown-item {{ setActive(['admin.withdraw-requests.*']) }}"
-                                        href="{{ route('admin.withdraw-requests.index') }}">
+                                        href="{{ $adminRoute('admin.withdraw-requests.index') }}">
                                         Withdraw Requests
                                     </a>
                                 </div>
@@ -538,7 +544,7 @@
                 @if (hasPermission(['Page Management']))
                     <li class="nav-item">
                         <a class="nav-link {{ setActive(['admin.custom-pages.*']) }}"
-                            href="{{ route('admin.custom-pages.index') }}">
+                            href="{{ $adminRoute('admin.custom-pages.index') }}">
                             <span class="nav-link-icon d-md-none d-lg-inline-block"><i class="ti ti-ruler"></i></span>
                             <span class="nav-link-title"> Page Builder </span>
                         </a>
@@ -567,7 +573,7 @@
                             <div class="dropdown-menu-columns">
                                 <div class="dropdown-menu-column">
                                     <a class="dropdown-item {{ setActive(['admin.contact-settings.*']) }}"
-                                        href="{{ route('admin.contact-settings.index') }}">
+                                        href="{{ $adminRoute('admin.contact-settings.index') }}">
                                         Contact Setting
                                     </a>
                                 </div>
@@ -589,7 +595,7 @@
                 @if (hasPermission(['Payment Setting']))
                     <li class="nav-item">
                         <a class="nav-link {{ setActive(['admin.payment-settings.*']) }}"
-                            href="{{ route('admin.payment-settings.index') }}">
+                            href="{{ $adminRoute('admin.payment-settings.index') }}">
                             <span class="nav-link-icon d-md-none d-lg-inline-block"><i
                                     class="ti ti-receipt-dollar"></i></span>
                             <span class="nav-link-title"> Payment Settings </span>
@@ -611,7 +617,7 @@
                                 @if (hasPermission(['Role Management']))
                                     <div class="dropdown-menu-column">
                                         <a class="dropdown-item {{ setActive(['admin.role.*']) }}"
-                                            href="{{ route('admin.role.index') }}">
+                                            href="{{ $adminRoute('admin.role.index') }}">
                                             Role
                                         </a>
                                     </div>
@@ -620,7 +626,7 @@
                                 @if (hasPermission(['Role User Management']))
                                     <div class="dropdown-menu-column">
                                         <a class="dropdown-item {{ setActive(['admin.role-users.*']) }}"
-                                            href="{{ route('admin.role-users.index') }}">
+                                            href="{{ $adminRoute('admin.role-users.index') }}">
                                             Role Users
                                         </a>
                                     </div>
@@ -634,7 +640,7 @@
                 @if (hasPermission(['Settings Management']))
                     <li class="nav-item">
                         <a class="nav-link {{ setActive(['admin.settings.*']) }}"
-                            href="{{ route('admin.database-clear.index') }}">
+                            href="{{ $adminRoute('admin.database-clear.index') }}">
                             <span class="nav-link-icon d-md-none d-lg-inline-block"><i class="ti ti-skull"></i></span>
                             <span class="nav-link-title"> Database Wipe </span>
                         </a>
@@ -645,7 +651,7 @@
                 @if (hasPermission(['Settings Management']))
                     <li class="nav-item">
                         <a class="nav-link {{ setActive(['admin.settings.*']) }}"
-                            href="{{ route('admin.settings.index') }}">
+                            href="{{ $adminRoute('admin.settings.index') }}">
                             <span class="nav-link-icon d-md-none d-lg-inline-block"><i
                                     class="ti ti-settings"></i></span>
                             <span class="nav-link-title"> Settings </span>
@@ -851,7 +857,7 @@
                 <div class="dropdown-menu dropdown-menu-end dropdown-menu-arrow">
                     <a href="{{ route('admin.profile.index') }}" class="dropdown-item">Profile</a>
                     <div class="dropdown-divider"></div>
-                    <a href="{{ route('admin.settings.index') }}" class="dropdown-item">Settings</a>
+                    <a href="{{ $adminRoute('admin.settings.index') }}" class="dropdown-item">Settings</a>
                     <a onclick="event.preventDefault();
                           $('.logout-form').submit();"
                         href="" class="dropdown-item">Logout</a>

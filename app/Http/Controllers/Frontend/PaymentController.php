@@ -10,6 +10,7 @@ use App\Services\OrderService;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Session;
 use Srmklive\PayPal\Services\PayPal as PayPalClient;
 use Stripe\Stripe;
@@ -25,24 +26,41 @@ class PaymentController extends Controller
             return redirect()->route('products.index');
         }
 
-        $cartItems = Cart::with('product.store')
+        $cartQuery = Cart::query()->with('product');
+
+        if (Schema::hasTable('stores')) {
+            $cartQuery->with('product.store');
+        }
+
+        $cartItems = $cartQuery
             ->where('user_id', user()->id)
             ->get()
             ->groupBy(function ($cartItem) {
-                return $cartItem->product->store_id;
+                return data_get($cartItem, 'product.store.id', 'default');
             });
 
-        $groupedCartItems = $cartItems->map(function ($items, $storeId) {
-            $store = $items->first()->product->store;
+        $groupedCartItems = $cartItems->map(function ($items) {
+            $store = data_get($items->first(), 'product.store') ?: \App\Models\Store::query()->make([
+                'name' => 'ShopX',
+            ]);
 
             return [
                 'store' => $store,
-                'items' => $items
+                'items' => $items,
             ];
         });
 
+        $shippingCharge = 0;
 
-        $shippingCharge = ShippingRule::find(Session::get('billing_info')['shipping_method_id'])->charge;
+        if (
+            Session::has('billing_info') &&
+            class_exists(ShippingRule::class) &&
+            Schema::hasTable('shipping_rules') &&
+            filled(Session::get('billing_info')['shipping_method_id'] ?? null)
+        ) {
+            $shippingCharge = (float) (ShippingRule::find(Session::get('billing_info')['shipping_method_id'])?->charge ?? 0);
+        }
+
         return view('frontend.pages.payment', compact('groupedCartItems', 'shippingCharge'));
     }
 
@@ -81,8 +99,14 @@ class PaymentController extends Controller
         ];
     }
 
-    function paypalPayment()
+    function paypalPayment(): RedirectResponse
     {
+        if (! class_exists(PayPalClient::class) || config('settings.paypal_status') !== 'active') {
+            AlertService::error('PayPal payment is not configured.');
+
+            return redirect()->route('payment.index');
+        }
+
         $payableAmount = getPayableAmount() * config('settings.paypal_rate');
 
         $config = $this->setPaypalConfig();
@@ -112,10 +136,16 @@ class PaymentController extends Controller
                 }
             }
         }
+
+        return redirect()->route('payment.cancel');
     }
 
-    function paypalSuccess(Request $request)
+    function paypalSuccess(Request $request): RedirectResponse
     {
+        if (! class_exists(PayPalClient::class) || ! filled($request->token)) {
+            return redirect()->route('payment.cancel');
+        }
+
         $config = $this->setPaypalConfig();
         $provider = new PayPalClient($config);
         $provider->getAccessToken();
@@ -140,10 +170,19 @@ class PaymentController extends Controller
     }
 
 
-    function paypalCancel() {}
-
-    function stripePayment()
+    function paypalCancel(): RedirectResponse
     {
+        return redirect()->route('payment.cancel');
+    }
+
+    function stripePayment(): RedirectResponse
+    {
+        if (! class_exists(Stripe::class) || ! class_exists(StripeSession::class) || config('settings.stripe_status') !== 'active') {
+            AlertService::error('Stripe payment is not configured.');
+
+            return redirect()->route('payment.index');
+        }
+
         $payableAmount = (getPayableAmount() * config('settings.stripe_rate')) * 100;
 
         Stripe::setApiKey(config('settings.stripe_secret'));
@@ -197,13 +236,21 @@ class PaymentController extends Controller
         return redirect()->route('payment.cancel');
     }
 
-    function razorpayRedirect(): View
+    function razorpayRedirect(): RedirectResponse
     {
-        return view('frontend.pages.razorpay-redirect');
+        if (config('settings.razorpay_status') !== 'active' || ! class_exists(RazorpayApi::class)) {
+            AlertService::error('Razorpay payment is not configured.');
+        }
+
+        return redirect()->route('payment.index');
     }
 
-    function razorpayPayment(Request $request)
+    function razorpayPayment(Request $request): RedirectResponse
     {
+        if (! class_exists(RazorpayApi::class) || config('settings.razorpay_status') !== 'active') {
+            return redirect()->route('payment.cancel');
+        }
+
         $api = new RazorpayApi(config('settings.razorpay_client_id'), config('settings.razorpay_secret'));
 
         $payableAmount = getPayableAmount() * config('settings.razorpay_rate') * 100;
@@ -229,5 +276,7 @@ class PaymentController extends Controller
 
             return redirect()->route('payment.cancel');
         }
+
+        return redirect()->route('payment.cancel');
     }
 }

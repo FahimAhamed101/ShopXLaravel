@@ -37,7 +37,7 @@ class HomeController extends Controller
         $popularProducts = $this->productsByCategory($popularCategoriesIds);
         $flashSale = $this->safeFirst(FlashSale::class, 'flash_sales', ['products', 'sale_start', 'sale_end', 'is_active']);
         $flashSaleProducts = $this->catalogReady()
-            ? Product::withAvg('reviews', 'rating')->whereIn('id', $flashSale?->products ?? [])->get()
+            ? $this->applyReviewAggregate(Product::query())->whereIn('id', $flashSale?->products ?? [])->get()
             : collect();
         $productSections = $this->safeFirst(ProductSection::class, 'product_sections', ['category_one', 'category_two', 'category_three']);
 
@@ -85,15 +85,18 @@ class HomeController extends Controller
             if ($category) {
                 $ids = [$category->id];
                 $ids = array_merge($ids, $category->allChildrenIds());
-                if ($featured)
-                    $products = Product::withAvg('reviews', 'rating')->whereHas('categories', function ($query) use ($ids) {
+                $query = $this->applyReviewAggregate(Product::query())
+                    ->whereHas('categories', function ($query) use ($ids) {
                         $query->whereIn('categories.id', $ids);
-                    })->whereIsFeatured(true)->take(12)->get();
-                else {
-                    $products = Product::withAvg('reviews', 'rating')->whereHas('categories', function ($query) use ($ids) {
-                        $query->whereIn('categories.id', $ids);
-                    })->latest()->take($limit)->get();
+                    });
+
+                if ($featured && Schema::hasColumn('products', 'is_featured')) {
+                    $query->whereIsFeatured(true)->take(12);
+                } else {
+                    $query->latest()->take($limit);
                 }
+
+                $products = $query->get();
 
 
                 $results[$categoryId] = $products;
@@ -106,6 +109,12 @@ class HomeController extends Controller
 
     function storeReview(Request $request, Product $product): JsonResponse
     {
+        if (! $this->reviewFeaturesReady()) {
+            throw ValidationException::withMessages([
+                'review' => 'Product reviews are not available with the current database schema.',
+            ]);
+        }
+
         $request->validate([
             'rating' => ['required', 'numeric', 'min:1', 'max:5'],
             'review' => ['required', 'string', 'max: 500'],
@@ -140,6 +149,8 @@ class HomeController extends Controller
 
     function customPage(string $slug): View
     {
+        abort_unless(class_exists(CustomPage::class) && tableHasColumns('custom_pages', ['slug', 'is_active']), 404);
+
         $page = CustomPage::where('slug', $slug)->where('is_active', true)->firstOrFail();
         return view('frontend.pages.custom-page', compact('page'));
     }
@@ -148,7 +159,7 @@ class HomeController extends Controller
     {
         $flashSale = $this->safeFirst(FlashSale::class, 'flash_sales', ['products', 'sale_start', 'sale_end', 'is_active']);
         $flashSaleProducts = $this->catalogReady()
-            ? Product::withAvg('reviews', 'rating')->whereIn('id', $flashSale?->products ?? [])->paginate(20)
+            ? $this->applyReviewAggregate(Product::query())->whereIn('id', $flashSale?->products ?? [])->paginate(20)
             : collect();
 
         return view('frontend.pages.flash-sale', compact('flashSale', 'flashSaleProducts'));
@@ -200,9 +211,7 @@ class HomeController extends Controller
         return class_exists(Product::class)
             && tableHasColumns('products', ['id'])
             && Schema::hasTable('category_product')
-            && method_exists(Product::class, 'categories')
-            && method_exists(Product::class, 'reviews')
-            && method_exists(Product::class, 'primaryImage');
+            && method_exists(Product::class, 'categories');
     }
 
     protected function productShowcase(string $column): Collection
@@ -211,12 +220,13 @@ class HomeController extends Controller
             return collect();
         }
 
-        return Product::with('primaryImage')
-            ->withAvg('reviews', 'rating')
-            ->where($column, true)
-            ->latest()
-            ->take(4)
-            ->get();
+        $query = Product::query()->where($column, true)->latest()->take(4);
+
+        if ($this->productImagesReady()) {
+            $query->with('primaryImage');
+        }
+
+        return $this->applyReviewAggregate($query)->get();
     }
 
     protected function topRatedProducts(): Collection
@@ -225,11 +235,38 @@ class HomeController extends Controller
             return collect();
         }
 
-        return Product::with('primaryImage')
-            ->whereHas('reviews')
-            ->withAvg('reviews', 'rating')
-            ->orderBy('reviews_avg_rating', 'desc')
-            ->take(4)
-            ->get();
+        $query = Product::query()->latest()->take(4);
+
+        if ($this->productImagesReady()) {
+            $query->with('primaryImage');
+        }
+
+        if ($this->reviewFeaturesReady()) {
+            $query->whereHas('reviews')
+                ->withAvg('reviews', 'rating')
+                ->orderBy('reviews_avg_rating', 'desc');
+        }
+
+        return $query->get();
+    }
+
+    protected function applyReviewAggregate($query)
+    {
+        if ($this->reviewFeaturesReady()) {
+            $query->withAvg('reviews', 'rating');
+        }
+
+        return $query;
+    }
+
+    protected function reviewFeaturesReady(): bool
+    {
+        return class_exists(ProductReview::class)
+            && tableHasColumns('product_reviews', ['product_id', 'user_id', 'rating', 'review']);
+    }
+
+    protected function productImagesReady(): bool
+    {
+        return tableHasColumns('product_images', ['product_id', 'path']);
     }
 }
