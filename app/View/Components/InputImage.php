@@ -11,10 +11,13 @@ class InputImage extends Component
     /**
      * Create a new component instance.
      */
-    public function __construct(public $id, public $name, public $image = null)
-    {
-        //
-    }
+    public function __construct(
+        public string $name,
+        public ?string $image = null,
+        public string $imageUploadId = 'image-upload',
+        public string $imagePreviewId = 'image-preview',
+        public string $imageLabelId = 'image-label',
+    ) {}
 
     /**
      * Get the view / contents that represent the component.

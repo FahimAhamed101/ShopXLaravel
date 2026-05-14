@@ -4,7 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 
-class ProductSection extends Model
+class BannerAd extends Model
 {
     protected $guarded = [];
 }

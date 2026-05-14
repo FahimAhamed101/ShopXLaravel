@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -21,6 +22,11 @@ class Order extends Model
     public function product(): BelongsTo
     {
         return $this->belongsTo(Product::class);
+    }
+
+    public function orderProducts(): HasMany
+    {
+        return $this->hasMany(OrderProduct::class);
     }
 
     public function getCurrencyAttribute($value): string
@@ -88,7 +94,7 @@ class Order extends Model
             return collect();
         }
 
-        $item = new stdClass();
+        $item = new stdClass;
         $item->product = $product;
         $item->variant = null;
         $item->quantity = (int) ($this->attributes['qty'] ?? $this->attributes['product_qty'] ?? 1);
@@ -118,7 +124,7 @@ class Order extends Model
             return collect(DB::table('order_histories')->where('order_id', $this->id)->orderBy('id')->get());
         }
 
-        $history = new stdClass();
+        $history = new stdClass;
         $history->status = ucfirst($this->order_status);
 
         return collect([$history]);

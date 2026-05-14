@@ -17,7 +17,6 @@ use App\Models\Store;
 use App\Models\Tag;
 use App\Services\AlertService;
 use App\Traits\FileUploadTrait;
-use Illuminate\Console\View\Components\Alert;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controllers\HasMiddleware;
@@ -25,40 +24,45 @@ use Illuminate\Routing\Controllers\Middleware;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 
 class ProductController extends Controller implements HasMiddleware
 {
     use FileUploadTrait;
 
-    static function Middleware(): array
+    public static function Middleware(): array
     {
         return [
-            new Middleware('permission:Product Management')
+            new Middleware('permission:Product Management'),
         ];
     }
 
-    function index(): View
+    public function index(): View
     {
         $products = Product::orderBy('id', 'desc')->paginate(30);
+
         return view('admin.product.index', compact('products'));
     }
 
-    function create(): View
+    public function create(): View
     {
-        $stores = Store::select(['name', 'id'])->get();
-        $brands = Brand::select(['name', 'id'])->where('is_active', 1)->get();
-        $tags = Tag::where('is_active', 1)->get();
-        $categories = Category::getNested();
+        $stores = $this->availableStores();
+        $brands = $this->availableBrands();
+        $tags = $this->availableTags();
+        $categories = $this->nestedCategories();
+
         return view('admin.product.create', compact('stores', 'brands', 'tags', 'categories'));
     }
 
-    function store(ProductStoreRequest $request, string $type)
+    public function store(ProductStoreRequest $request, string $type)
     {
 
-        if (!in_array($type, ['physical', 'digital'])) abort(404);
+        if (! in_array($type, ['physical', 'digital'])) {
+            abort(404);
+        }
 
-        $product = new Product();
+        $product = new Product;
         $product->name = $request->name;
         $product->slug = $request->slug;
         $product->product_type = $type;
@@ -90,78 +94,81 @@ class ProductController extends Controller implements HasMiddleware
         if ($type == 'physical') {
             return response()->json([
                 'id' => $product->id,
-                'redirect_url' => route('admin.products.edit', $product->id) . '#product-images',
+                'redirect_url' => route('admin.products.edit', $product->id).'#product-images',
                 'status' => 'success',
-                'message' => 'Product created successfully'
+                'message' => 'Product created successfully',
             ]);
         } else {
 
             return response()->json([
                 'id' => $product->id,
-                'redirect_url' => route('admin.digital-products.edit', $product->id) . '#product-images',
+                'redirect_url' => route('admin.digital-products.edit', $product->id).'#product-images',
                 'status' => 'success',
-                'message' => 'Product created successfully'
+                'message' => 'Product created successfully',
             ]);
         }
     }
 
-    function edit(int $id)
+    public function edit(int $id)
     {
 
         $product = Product::findOrFail($id);
         // dd($product->attributes);
         $productCategoryIds = $product->categories->pluck('id')->toArray();
         $productTagIds = $product->tags->pluck('id')->toArray();
-        $stores = Store::select(['name', 'id'])->get();
-        $brands = Brand::select(['name', 'id'])->where('is_active', 1)->get();
-        $tags = Tag::where('is_active', 1)->get();
-        $categories = Category::getNested();
+        $stores = $this->availableStores();
+        $brands = $this->availableBrands();
+        $tags = $this->availableTags();
+        $categories = $this->nestedCategories();
 
         $attributesWithValues = $product?->attributeWithValues ?? [];
         $variants = $product?->variants ?? [];
+
         // dd($attributesValues);
         return view('admin.product.edit', compact('stores', 'brands', 'tags', 'categories', 'product', 'productCategoryIds', 'productTagIds', 'attributesWithValues', 'variants'));
     }
 
-    function editDigitalProduct(int $id)
+    public function editDigitalProduct(int $id)
     {
 
         $product = Product::findOrFail($id);
-        if ($product->product_type != 'digital') abort(404);
+        if ($product->product_type != 'digital') {
+            abort(404);
+        }
         // dd($product->attributes);
         $productCategoryIds = $product->categories->pluck('id')->toArray();
         $productTagIds = $product->tags->pluck('id')->toArray();
-        $stores = Store::select(['name', 'id'])->get();
-        $brands = Brand::select(['name', 'id'])->where('is_active', 1)->get();
-        $tags = Tag::where('is_active', 1)->get();
-        $categories = Category::getNested();
+        $stores = $this->availableStores();
+        $brands = $this->availableBrands();
+        $tags = $this->availableTags();
+        $categories = $this->nestedCategories();
 
         return view('admin.product.digital-edit', compact('stores', 'brands', 'tags', 'categories', 'product', 'productCategoryIds', 'productTagIds'));
     }
 
-    function uploadDigitalProductFile(Request $request)
+    public function uploadDigitalProductFile(Request $request)
     {
         $file = $request->file('file');
         $chunkIndex = $request->dzchunkindex;
         $totalChunks = $request->dztotalchunkcount;
         $fileName = $request->name;
 
-        $chunkFolder = storage_path('app/private/chunks/' . $fileName);
-        if (!file_exists($chunkFolder)) {
+        $chunkFolder = storage_path('app/private/chunks/'.$fileName);
+        if (! file_exists($chunkFolder)) {
             mkdir($chunkFolder, 0777, true);
         }
 
-        $chunkPath = $chunkFolder . '/' . $chunkIndex;
+        $chunkPath = $chunkFolder.'/'.$chunkIndex;
 
         file_put_contents($chunkPath, file_get_contents($file->getRealPath()));
 
         if ($chunkIndex == $totalChunks - 1) {
-            $finalFileName = \Str::uuid() . '.' . $file->getClientOriginalExtension();
-            $finalPath = storage_path('app/private/uploads/' . $finalFileName);
+            $finalFileName = \Str::uuid().'.'.$file->getClientOriginalExtension();
+            $finalPath = storage_path('app/private/uploads/'.$finalFileName);
             $output = fopen($finalPath, 'ab');
 
             for ($i = 0; $i < $totalChunks; $i++) {
-                $chunkFile = $chunkFolder . '/' . $i;
+                $chunkFile = $chunkFolder.'/'.$i;
                 $input = fopen($chunkFile, 'rb');
                 stream_copy_to_stream($input, $output);
                 fclose($input);
@@ -175,11 +182,11 @@ class ProductController extends Controller implements HasMiddleware
             $validationResponse = $this->validateFinalFile($finalPath);
             if ($validationResponse !== true) {
                 unlink($finalPath);
+
                 return $validationResponse;
             }
 
             $this->storeDigitalFile($file, $request->product_id, $fileName, $finalFileName);
-
 
             return response()->json(['status' => 'success']);
         }
@@ -187,7 +194,7 @@ class ProductController extends Controller implements HasMiddleware
         return response()->json(['status' => 'chunk_received']);
     }
 
-    function validateFinalFile(string $finalPath)
+    public function validateFinalFile(string $finalPath)
     {
         $maxSizeMb = 1000;
         $maxSizeBytes = $maxSizeMb * 1024 * 1024;
@@ -203,66 +210,66 @@ class ProductController extends Controller implements HasMiddleware
 
         $allowedMimeTypes = [
             // Images
-            'jpg'  => 'image/jpeg',
+            'jpg' => 'image/jpeg',
             'jpeg' => 'image/jpeg',
-            'png'  => 'image/png',
-            'gif'  => 'image/gif',
+            'png' => 'image/png',
+            'gif' => 'image/gif',
             'webp' => 'image/webp',
-            'bmp'  => 'image/bmp',
-            'svg'  => 'image/svg+xml',
-            'ico'  => 'image/vnd.microsoft.icon',
+            'bmp' => 'image/bmp',
+            'svg' => 'image/svg+xml',
+            'ico' => 'image/vnd.microsoft.icon',
 
             // Documents
-            'pdf'  => 'application/pdf',
-            'doc'  => 'application/msword',
+            'pdf' => 'application/pdf',
+            'doc' => 'application/msword',
             'docx' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-            'xls'  => 'application/vnd.ms-excel',
+            'xls' => 'application/vnd.ms-excel',
             'xlsx' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-            'ppt'  => 'application/vnd.ms-powerpoint',
+            'ppt' => 'application/vnd.ms-powerpoint',
             'pptx' => 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-            'txt'  => 'text/plain',
-            'csv'  => 'text/csv',
-            'rtf'  => 'application/rtf',
+            'txt' => 'text/plain',
+            'csv' => 'text/csv',
+            'rtf' => 'application/rtf',
 
             // Audio
-            'mp3'  => 'audio/mpeg',
-            'wav'  => 'audio/wav',
-            'ogg'  => 'audio/ogg',
-            'm4a'  => 'audio/mp4',
+            'mp3' => 'audio/mpeg',
+            'wav' => 'audio/wav',
+            'ogg' => 'audio/ogg',
+            'm4a' => 'audio/mp4',
             'flac' => 'audio/flac',
 
             // Video
-            'mp4'  => 'video/mp4',
+            'mp4' => 'video/mp4',
             'webm' => 'video/webm',
-            'mov'  => 'video/quicktime',
+            'mov' => 'video/quicktime',
 
             // Archives (still consider validating contents before extracting)
-            'zip'  => 'application/zip',
-            '7z'   => 'application/x-7z-compressed',
-            'tar'  => 'application/x-tar',
-            'gz'   => 'application/gzip',
+            'zip' => 'application/zip',
+            '7z' => 'application/x-7z-compressed',
+            'tar' => 'application/x-tar',
+            'gz' => 'application/gzip',
         ];
 
-        if (!in_array($mimeType, $allowedMimeTypes)) {
+        if (! in_array($mimeType, $allowedMimeTypes)) {
             return response()->json(['status' => 'error', 'message' => 'Invalid file type'], 400);
         }
 
         return true;
     }
 
-    function storeDigitalFile($file, $product_id, $fileName, $finalFileName)
+    public function storeDigitalFile($file, $product_id, $fileName, $finalFileName)
     {
 
-        $productFile = new ProductFile();
+        $productFile = new ProductFile;
         $productFile->product_id = $product_id;
         $productFile->filename = $fileName;
-        $productFile->path = "/uploads/" . $finalFileName;
+        $productFile->path = '/uploads/'.$finalFileName;
         $productFile->extension = $file->getClientOriginalExtension();
         $productFile->size = $file->getSize();
         $productFile->save();
     }
 
-    function destroyDigitalProductFile(int $productId, int $id)
+    public function destroyDigitalProductFile(int $productId, int $id)
     {
         try {
             $productFile = ProductFile::where('id', $id)->where('product_id', $productId)->firstOrFail();
@@ -271,14 +278,16 @@ class ProductController extends Controller implements HasMiddleware
                 Storage::disk('local')->delete($productFile->path);
             }
             $productFile->delete();
+
             return response()->json(['status' => 'success', 'message' => 'File deleted successfully']);
         } catch (\Exception $e) {
-            logger('Failed to delete file: ' . $e);
+            logger('Failed to delete file: '.$e);
+
             return response()->json(['status' => 'error', 'message' => $e->getMessage()]);
         }
     }
 
-    function update(ProductUpdateRequest $request, int $id)
+    public function update(ProductUpdateRequest $request, int $id)
     {
         $product = Product::findOrFail($id);
         $product->name = $request->name;
@@ -314,20 +323,20 @@ class ProductController extends Controller implements HasMiddleware
             'id' => $product->id,
             'status' => 'success',
             'message' => 'Product updated successfully',
-            'redirect_url' => route('admin.products.index')
+            'redirect_url' => route('admin.products.index'),
         ]);
     }
 
-    function uploadImages(Request $request, Product $product)
+    public function uploadImages(Request $request, Product $product)
     {
 
         $request->validate([
-            'file' => ['required', 'image', 'max:3048']
+            'file' => ['required', 'image', 'max:3048'],
         ]);
 
         $filePath = $this->uploadFile($request->file('file'));
 
-        $productImage = new ProductImage();
+        $productImage = new ProductImage;
         $productImage->product_id = $product->id;
         $productImage->path = $filePath;
         $productImage->order = ProductImage::where('product_id', 1)->max('order') + $product->id;
@@ -337,27 +346,27 @@ class ProductController extends Controller implements HasMiddleware
             'status' => 'success',
             'id' => $productImage->id,
             'path' => asset($filePath),
-            'message' => 'Image uploaded successfully'
+            'message' => 'Image uploaded successfully',
         ]);
     }
 
-    function destroyImage(int $id)
+    public function destroyImage(int $id)
     {
         $image = ProductImage::findOrFail($id);
         $this->deleteFile($image->path);
         $image->delete();
+
         return response()->json(['status' => 'success', 'message' => 'Image deleted successfully']);
     }
 
-    function imagesReorder(Request $request)
+    public function imagesReorder(Request $request)
     {
         foreach ($request->images as $image) {
             ProductImage::where('id', $image['id'])->update(['order' => $image['order']]);
         }
     }
 
-
-    function storeAttributes(Request $request, Product $product)
+    public function storeAttributes(Request $request, Product $product)
     {
         $request->validate([
             'attribute_name' => ['required', 'string', 'max:255'],
@@ -379,16 +388,16 @@ class ProductController extends Controller implements HasMiddleware
             $this->regenerateProductVariants($product);
         } catch (\Throwable $th) {
             DB::rollBack();
+
             return response()->json(['error' => $th->getMessage()], 500);
         }
-
 
         return $this->buildSuccessResponse($product);
     }
 
-    function createNewAttribute(Request $request, Product $product)
+    public function createNewAttribute(Request $request, Product $product)
     {
-        $attribute = new Attribute();
+        $attribute = new Attribute;
         $attribute->name = $request->attribute_name;
         $attribute->type = $request->attribute_type;
         $attribute->save();
@@ -396,7 +405,7 @@ class ProductController extends Controller implements HasMiddleware
         $this->addAttributesValue($attribute, $request, $product);
     }
 
-    function updateExistingAttribute(Request $request, Product $product)
+    public function updateExistingAttribute(Request $request, Product $product)
     {
         $attribute = Attribute::findOrFail($request->attribute_id);
         $attribute->name = $request->attribute_name;
@@ -410,7 +419,7 @@ class ProductController extends Controller implements HasMiddleware
         $this->addAttributesValue($attribute, $request, $product);
     }
 
-    function clearAttributeData(Attribute $attribute, Product $product)
+    public function clearAttributeData(Attribute $attribute, Product $product)
     {
         DB::table('product_attribute_values')
             ->where('product_id', $product->id)
@@ -420,14 +429,16 @@ class ProductController extends Controller implements HasMiddleware
         AttributeValue::where('attribute_id', $attribute->id)->delete();
     }
 
-    function addAttributesValue(Attribute $attribute, Request $request, Product $product)
+    public function addAttributesValue(Attribute $attribute, Request $request, Product $product)
     {
         $labels = $request->label ?? [];
 
         foreach ($labels as $index => $label) {
-            if (empty($label)) continue;
+            if (empty($label)) {
+                continue;
+            }
 
-            $attributeValue = new AttributeValue();
+            $attributeValue = new AttributeValue;
             $attributeValue->attribute_id = $attribute->id;
             $attributeValue->value = $label;
             $attributeValue->color = $request->color_value[$index] ?? null;
@@ -437,17 +448,16 @@ class ProductController extends Controller implements HasMiddleware
             DB::table('product_attribute_values')->insert([
                 'product_id' => $product->id,
                 'attribute_id' => $attribute->id,
-                'attribute_value_id' => $attributeValue->id
+                'attribute_value_id' => $attributeValue->id,
             ]);
         }
     }
 
-    function buildSuccessResponse(Product $product)
+    public function buildSuccessResponse(Product $product)
     {
         $product->refresh();
 
         $attributes = $product->attributeWithValues;
-
 
         $html = '';
         $variantHtml = '';
@@ -464,11 +474,11 @@ class ProductController extends Controller implements HasMiddleware
         return response()->json([
             'message' => 'Attribute generated successfully',
             'html' => $html,
-            'variantHtml' => $variantHtml
+            'variantHtml' => $variantHtml,
         ]);
     }
 
-    function destroyAttribute(int $productId, int $attributeId)
+    public function destroyAttribute(int $productId, int $attributeId)
     {
         try {
             $product = Product::findOrFail($productId);
@@ -482,7 +492,6 @@ class ProductController extends Controller implements HasMiddleware
             $attributes = $product->attributeWithValues;
 
             $attribute->delete();
-
 
             $html = '';
             $variantHtml = '';
@@ -499,18 +508,17 @@ class ProductController extends Controller implements HasMiddleware
             return response()->json([
                 'message' => 'Attribute deleted successfully',
                 'html' => $html,
-                'variantHtml' => $variantHtml
+                'variantHtml' => $variantHtml,
             ]);
         } catch (\Throwable $th) {
             return response()->json(['error' => $th->getMessage()], 500);
         }
     }
 
-    function regenerateProductVariants(Product $product)
+    public function regenerateProductVariants(Product $product)
     {
         // clear existing variants
         $this->clearExistingVariants($product);
-
 
         // get current attribute values group by attributes
         $attributeGroups = $this->getAttributeGroups($product);
@@ -524,7 +532,7 @@ class ProductController extends Controller implements HasMiddleware
         $this->createVariantsFromCombinations($product, $combinations);
     }
 
-    function getAttributeGroups(Product $product)
+    public function getAttributeGroups(Product $product)
     {
         $groupedAttributes = DB::table('product_attribute_values')
             ->where('product_id', $product->id)
@@ -537,11 +545,10 @@ class ProductController extends Controller implements HasMiddleware
             $attributeGroups->push($attributeValues);
         }
 
-
         return $attributeGroups;
     }
 
-    function cartesianProduct(Collection $attributeGroups)
+    public function cartesianProduct(Collection $attributeGroups)
     {
         $result = [[]];
 
@@ -560,7 +567,7 @@ class ProductController extends Controller implements HasMiddleware
         return $result;
     }
 
-    function createVariantsFromCombinations(Product $product, array $combinations)
+    public function createVariantsFromCombinations(Product $product, array $combinations)
     {
         foreach ($combinations as $combination) {
             $variant = $this->createSingleVariant($product, $combination);
@@ -568,7 +575,7 @@ class ProductController extends Controller implements HasMiddleware
         }
     }
 
-    function createSingleVariant(Product $product, array $combination)
+    public function createSingleVariant(Product $product, array $combination)
     {
         $variantName = collect($combination)->pluck('value')->implode('/');
 
@@ -578,11 +585,11 @@ class ProductController extends Controller implements HasMiddleware
             'price' => 0,
             'sku' => '',
             'qty' => 0,
-            'is_active' => 1
+            'is_active' => 1,
         ]);
     }
 
-    function attachAttributesToVariant(ProductVariant $variant, array $combination)
+    public function attachAttributesToVariant(ProductVariant $variant, array $combination)
     {
         foreach ($combination as $attributeValue) {
             DB::table('product_variant_attribute_value')->insert([
@@ -593,7 +600,7 @@ class ProductController extends Controller implements HasMiddleware
         }
     }
 
-    function updateVariants(Request $request, int $product)
+    public function updateVariants(Request $request, int $product)
     {
         $request->validate([
             'variant_sku' => ['nullable', 'string', 'max:255'],
@@ -622,7 +629,7 @@ class ProductController extends Controller implements HasMiddleware
         return response()->json(['message' => 'Variant updated successfully']);
     }
 
-    function clearExistingVariants(Product $product)
+    public function clearExistingVariants(Product $product)
     {
         foreach ($product->variants as $variant) {
             DB::table('product_variant_attribute_value')
@@ -632,15 +639,61 @@ class ProductController extends Controller implements HasMiddleware
         }
     }
 
-    function destroy(Product $product)
+    public function destroy(Product $product)
     {
         if (Auth::user()->hasRole('Super Admin') || hasPermission(['Product Management'])) {
             $product->delete();
             notyf()->success('Product deleted successfully');
+
             return response()->json(['status' => 'success', 'message' => 'Product deleted successfully']);
         }
 
         notyf()->error('You do not have permission to delete this product');
+
         return response()->json(['status' => 'error', 'message' => 'You do not have permission to delete this product']);
+    }
+
+    protected function availableStores(): Collection
+    {
+        if (! Schema::hasTable('stores') || ! Schema::hasColumn('stores', 'name')) {
+            return collect();
+        }
+
+        return Store::query()->select(['name', 'id'])->get();
+    }
+
+    protected function availableBrands(): Collection
+    {
+        if (! Schema::hasTable('brands') || ! Schema::hasColumn('brands', 'name')) {
+            return collect();
+        }
+
+        $query = Brand::query()->select(['name', 'id']);
+
+        if (Schema::hasColumn('brands', 'is_active')) {
+            $query->where('is_active', 1);
+        }
+
+        return $query->get();
+    }
+
+    protected function availableTags(): Collection
+    {
+        if (! Schema::hasTable('tags')) {
+            return collect();
+        }
+
+        $query = Tag::query();
+
+        if (Schema::hasColumn('tags', 'is_active')) {
+            $query->where('is_active', 1);
+        }
+
+        return $query->get();
+    }
+
+    protected function nestedCategories(): Collection
+    {
+        return tableHasColumns('categories', ['parent_id']) ? Category::getNested() : collect();
     }
 }
