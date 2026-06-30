@@ -221,7 +221,7 @@
                                                     </label>
                                                     <label class="form-check">
                                                         <input class="form-check-input" type="radio"
-                                                            name="stock_status" checked="" value="out_of_stock">
+                                                            name="stock_status" value="out_of_stock">
                                                         <span class="form-check-label">Out Of Stock</span>
                                                     </label>
                                                 </div>
@@ -274,7 +274,7 @@
                             <div class="col-md-12">
                                 <div class="mb-3">
                                     <select name="store" class="form-control select2" id="">
-                                        <option value="published">Select a store</option>
+                                        <option value="">Select a store</option>
                                         @foreach ($stores as $store)
                                             <option value="{{ $store->id }}">{{ $store->name }}</option>
                                         @endforeach
@@ -526,19 +526,21 @@
 
                 $.ajax({
                     method: 'POST',
-                    url: "{{ route('admin.products.store', ['type' => ':type']) }}".replace(
-                        ':type', '{{ request()->type }}'),
+                    url: "{{ route('admin.products.store', ['type' => ':type'], false) }}".replace(
+                        ':type', '{{ $type }}'),
                     data: data,
                     contentType: false,
                     processData: false,
                     success: function(response) {
                         imageUploader.options.url =
-                            "/admin/products/images/upload/" + response.product_id;
+                            "/admin/products/images/upload/" + response.id;
+                        imageUploader.redirectUrl = response.redirect_url;
 
                         // 🚀 NOW upload images
                         if (imageUploader.getQueuedFiles().length > 0) {
                             imageUploader.processQueue();
                         } else {
+                            imageUploader.redirectUrl = response.redirect_url;
                             window.location.href = response.redirect_url;
                         }
 
@@ -548,8 +550,14 @@
                     },
                     error: function(xhr, status, error) {
                         console.log(xhr);
-                        let errors = xhr.responseJSON.errors;
-                        $.each(errors, function(key, value) {
+                        let errors = xhr.responseJSON?.errors;
+
+                        if (!errors) {
+                            notyf.error(xhr.responseJSON?.message || error || 'Unable to create product.');
+                            return;
+                        }
+
+                        $.each(errors, function(key) {
                             notyf.error(errors[key][0]);
                         });
                     }
@@ -575,13 +583,13 @@
         // Dropzone image upload
         Dropzone.autoDiscover = false;
         const imageUploader = new Dropzone('#imageUploader', {
-            url: "{{ route('admin.products.images.upload', $product->id ?? 0) }}",
+            url: "{{ route('admin.products.images.upload', $product->id ?? 0, false) }}",
             paramName: 'file',
             maxFilesize: 10,
             acceptedFiles: 'image/*',
             addRemoveLinks: false,
             autoProcessQueue: false,
-            uploadMultiple: true,
+            uploadMultiple: false,
             previewsContainer: false,
             headers: {
                 'X-CSRF-TOKEN': "{{ csrf_token() }}"
@@ -606,8 +614,16 @@
                 });
 
                 this.on('error', function(file, errorMessage) {
-                    // handle error response
                     console.error(errorMessage);
+                    $(`#${file.placeholderId}`).remove();
+                    notyf.error(errorMessage?.message || 'Image upload failed.');
+                    this.removeFile(file);
+                });
+
+                this.on('queuecomplete', function() {
+                    if (this.redirectUrl) {
+                        window.location.href = this.redirectUrl;
+                    }
                 });
             }
         })

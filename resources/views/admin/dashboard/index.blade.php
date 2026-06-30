@@ -273,7 +273,7 @@
                                             <div class="row">
                                                 <div class="col-auto">
                                                     <span class="avatar avatar-1"
-                                                        style="background-image: url({{ asset($kyc->user->avatar) }})">
+                                                        style="background-image: url({{ asset($kyc->user?->avatar ?? '/defaults/avatar.png') }})">
                                                     </span>
                                                 </div>
                                                 <div class="col">

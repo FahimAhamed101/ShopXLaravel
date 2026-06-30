@@ -45,8 +45,8 @@
                         @csrf
                         <div class="mb-3">
                             <label class="form-label">Email address</label>
-                            <input type="email" name="email" :value="old('email')" class="form-control"
-                                placeholder="your@email.com" autocomplete="off" />
+                            <input type="email" name="email" value="{{ old('email', 'admin@gmail.com') }}"
+                                class="form-control" placeholder="admin@gmail.com" autocomplete="username" />
                             <x-input-error :messages="$errors->get('email')" class="mt-2" />
 
                         </div>
@@ -59,18 +59,20 @@
                                 </span>
                             </label>
                             <div class="input-group input-group-flat">
-                                <input type="password" name="password" class="form-control" placeholder="Your password"
-                                    autocomplete="off" />
+                                <input type="password" name="password" id="admin-password" class="form-control"
+                                    placeholder="Your password" autocomplete="current-password" />
                                 <span class="input-group-text">
-                                    <a href="#" class="link-secondary" title="Show password"
-                                        data-bs-toggle="tooltip"><!-- Download SVG icon from http://tabler.io/icons/icon/eye -->
+                                    <button type="button" class="btn btn-link link-secondary p-0 border-0"
+                                        id="toggle-admin-password" title="Show password" aria-label="Show password"
+                                        aria-pressed="false" data-bs-toggle="tooltip">
                                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
                                             viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                                             stroke-linecap="round" stroke-linejoin="round" class="icon icon-1">
                                             <path d="M10 12a2 2 0 1 0 4 0a2 2 0 0 0 -4 0" />
                                             <path
                                                 d="M21 12c-2.4 4 -5.4 6 -9 6c-3.6 0 -6.6 -2 -9 -6c2.4 -4 5.4 -6 9 -6c3.6 0 6.6 2 9 6" />
-                                        </svg></a>
+                                        </svg>
+                                    </button>
                                 </span>
                             </div>
                         </div>
@@ -91,6 +93,24 @@
             </div>
         </div>
     </div>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const passwordInput = document.getElementById('admin-password');
+            const toggleButton = document.getElementById('toggle-admin-password');
+
+            if (!passwordInput || !toggleButton) {
+                return;
+            }
+
+            toggleButton.addEventListener('click', function () {
+                const isHidden = passwordInput.type === 'password';
+                passwordInput.type = isHidden ? 'text' : 'password';
+                toggleButton.setAttribute('aria-pressed', isHidden ? 'true' : 'false');
+                toggleButton.setAttribute('aria-label', isHidden ? 'Hide password' : 'Show password');
+                toggleButton.setAttribute('title', isHidden ? 'Hide password' : 'Show password');
+            });
+        });
+    </script>
 </body>
 
 </html>

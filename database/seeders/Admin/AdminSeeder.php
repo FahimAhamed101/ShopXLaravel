@@ -13,10 +13,17 @@ class AdminSeeder extends Seeder
      */
     public function run(): void
     {
-        $admin = new Admin();
-        $admin->name = 'Super Admin';
-        $admin->email = 'admin@gmail.com';
-        $admin->password = bcrypt('1234');
-        $admin->save();
+        foreach ([
+            ['name' => 'Super Admin', 'email' => 'admin@gmail.com'],
+            ['name' => 'Demo Admin', 'email' => 'admin@example.com'],
+        ] as $adminData) {
+            Admin::updateOrCreate(
+                ['email' => $adminData['email']],
+                [
+                    'name' => $adminData['name'],
+                    'password' => bcrypt('1234'),
+                ]
+            );
+        }
     }
 }

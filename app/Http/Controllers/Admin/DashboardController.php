@@ -80,7 +80,7 @@ class DashboardController extends Controller
 
         $totalCommission = $this->sumBetween('admin_commissions', 'commission_amount', $yearStart, $yearEnd);
 
-        $pendingKycs = $this->latestWhereIn(Kyc::class, 'kycs', $kycStatusColumn, ['pending'], 5);
+        $pendingKycs = $this->latestWhereIn(Kyc::class, 'kycs', $kycStatusColumn, ['pending'], 5, ['user']);
         $recentPendingOrders = Route::has('admin.orders.show')
             ? $this->latestWhereIn(Order::class, 'orders', $orderStatusColumn, ['pending'], 5)
             : collect();
@@ -175,13 +175,14 @@ class DashboardController extends Controller
             ->sum($column);
     }
 
-    protected function latestWhereIn(string $model, string $table, ?string $column, array $values, int $limit): Collection
+    protected function latestWhereIn(string $model, string $table, ?string $column, array $values, int $limit, array $with = []): Collection
     {
         if (! $column || ! Schema::hasTable($table)) {
             return collect();
         }
 
         return $model::query()
+            ->with($with)
             ->whereIn($column, $values)
             ->latest()
             ->take($limit)

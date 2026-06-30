@@ -65,9 +65,11 @@ class FakeStoreSeeder extends Seeder
 
         $users = $this->seedUsers();
         $vendors = $users->where('user_type', 'vendor')->values();
+        $stores = $this->seedStores($vendors);
 
         $categories = $this->seedCategories();
-        $products = $this->seedProducts($vendors, $categories);
+        $products = $this->seedProducts($vendors, $categories, $stores);
+        $this->syncProductStores($products, $stores);
 
         $this->seedCategoryProduct($categories, $products);
         $this->seedProductImages($products);
@@ -89,6 +91,14 @@ class FakeStoreSeeder extends Seeder
                 'avatar' => '/defaults/avatar.png',
                 'name' => 'Super Admin',
                 'email' => 'admin@gmail.com',
+                'email_verified_at' => now()->subMonths(6),
+                'password' => $password,
+                'remember_token' => Str::random(10),
+            ],
+            [
+                'avatar' => '/defaults/avatar.png',
+                'name' => 'Demo Admin',
+                'email' => 'admin@example.com',
                 'email_verified_at' => now()->subMonths(6),
                 'password' => $password,
                 'remember_token' => Str::random(10),
@@ -209,7 +219,34 @@ class FakeStoreSeeder extends Seeder
         return DB::table('categories')->orderBy('id')->get();
     }
 
-    protected function seedProducts(Collection $vendors, Collection $categories): Collection
+    protected function seedStores(Collection $vendors): Collection
+    {
+        if (! $this->tableExists('stores') || $vendors->isEmpty()) {
+            return collect();
+        }
+
+        foreach ($vendors as $index => $vendor) {
+            DB::table('stores')->updateOrInsert(
+                ['seller_id' => $vendor->id],
+                $this->timestamped('stores', [
+                    'seller_id' => $vendor->id,
+                    'logo' => $vendor->avatar ?? '/defaults/avatar.png',
+                    'banner' => '/assets/frontend/dist/imgs/vendor/vendor-header-bg.png',
+                    'name' => $vendor->store_name ?? $vendor->shop_name ?? $vendor->name,
+                    'phone' => $vendor->phone ?? null,
+                    'email' => $vendor->email ?? null,
+                    'address' => $vendor->address ?? null,
+                    'short_description' => ($vendor->name ?? 'Vendor').' store profile',
+                    'long_description' => 'Seeded vendor store for demo products.',
+                    'is_active' => true,
+                ], 35 - min($index, 30))
+            );
+        }
+
+        return DB::table('stores')->orderBy('id')->get();
+    }
+
+    protected function seedProducts(Collection $vendors, Collection $categories, Collection $stores): Collection
     {
         if ($this->tableHasRows('products')) {
             return DB::table('products')->orderBy('id')->get();
@@ -227,6 +264,10 @@ class FakeStoreSeeder extends Seeder
                 ? $vendors[$index % $vendors->count()]->id
                 : null;
 
+            $storeId = $vendorId && $stores->isNotEmpty()
+                ? $stores->firstWhere('seller_id', $vendorId)?->id
+                : null;
+
             $categoryId = $leafCategoryIds->isNotEmpty()
                 ? $leafCategoryIds[$index % $leafCategoryIds->count()]
                 : null;
@@ -234,6 +275,7 @@ class FakeStoreSeeder extends Seeder
             $rows[] = $this->timestamped('products', [
                 'vendor_id' => $vendorId,
                 'user_id' => $vendorId,
+                'store_id' => $storeId,
                 'category_id' => $categoryId,
                 'name' => $product['name'],
                 'slug' => Str::slug($product['name']),
@@ -262,6 +304,31 @@ class FakeStoreSeeder extends Seeder
         DB::table('products')->insert($rows);
 
         return DB::table('products')->orderBy('id')->get();
+    }
+
+    protected function syncProductStores(Collection $products, Collection $stores): void
+    {
+        if (! $this->tableExists('products')
+            || ! isset($this->columnsFor('products')['store_id'])
+            || $products->isEmpty()
+            || $stores->isEmpty()) {
+            return;
+        }
+
+        foreach ($products as $product) {
+            if (filled($product->store_id ?? null)) {
+                continue;
+            }
+
+            $vendorId = $product->vendor_id ?? $product->user_id ?? null;
+            $storeId = $vendorId ? $stores->firstWhere('seller_id', $vendorId)?->id : null;
+
+            if ($storeId) {
+                DB::table('products')
+                    ->where('id', $product->id)
+                    ->update(['store_id' => $storeId, 'updated_at' => now()]);
+            }
+        }
     }
 
     protected function seedCategoryProduct(Collection $categories, Collection $products): void

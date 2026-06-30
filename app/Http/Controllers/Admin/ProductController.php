@@ -40,19 +40,25 @@ class ProductController extends Controller implements HasMiddleware
 
     public function index(): View
     {
-        $products = Product::orderBy('id', 'desc')->paginate(30);
+        $products = Product::with(['primaryImage', 'variants', 'store'])
+            ->orderBy('id', 'desc')
+            ->paginate(30);
 
         return view('admin.product.index', compact('products'));
     }
 
-    public function create(): View
+    public function create(string $type): View
     {
+        if (! in_array($type, ['physical', 'digital'])) {
+            abort(404);
+        }
+
         $stores = $this->availableStores();
         $brands = $this->availableBrands();
         $tags = $this->availableTags();
         $categories = $this->nestedCategories();
 
-        return view('admin.product.create', compact('stores', 'brands', 'tags', 'categories'));
+        return view('admin.product.create', compact('stores', 'brands', 'tags', 'categories', 'type'));
     }
 
     public function store(ProductStoreRequest $request, string $type)
@@ -69,32 +75,32 @@ class ProductController extends Controller implements HasMiddleware
         $product->short_description = $request->short_description;
         $product->description = $request->content;
         $product->sku = $request->sku;
-        $product->price = $request->price;
-        $product->special_price = $request->special_price;
+        $product->price = $request->filled('price') ? $request->price : 0;
+        $product->special_price = $request->filled('special_price') ? $request->special_price : 0;
         $product->special_price_start = $request->from_date;
         $product->special_price_end = $request->to_date;
-        $product->qty = $request->quantity;
+        $product->qty = $request->filled('quantity') ? $request->quantity : 0;
         $product->manage_stock = $request->has('manage_stock') ? 'yes' : 'no';
         $product->in_stock = $request->stock_status == 'in_stock' ? 1 : 0;
         $product->status = $request->status;
         $product->approved_status = 'approved';
-        $product->store_id = $request->store;
-        $product->brand_id = $request->brand;
+        $product->store_id = $request->filled('store') ? $request->store : null;
+        $product->brand_id = $request->filled('brand') ? $request->brand : null;
         $product->is_featured = $request->has('is_featured') ? 1 : 0;
         $product->is_hot = $request->has('is_hot') ? 1 : 0;
         $product->is_new = $request->has('is_new') ? 1 : 0;
         $product->save();
 
         /** Attach categories */
-        $product->categories()->sync($request->categories);
+        $product->categories()->sync($request->input('categories', []));
 
         /** Attach tags */
-        $product->tags()->sync($request->tags);
+        $product->tags()->sync($request->input('tags', []));
 
         if ($type == 'physical') {
             return response()->json([
                 'id' => $product->id,
-                'redirect_url' => route('admin.products.edit', $product->id).'#product-images',
+                'redirect_url' => route('admin.products.edit', $product->id, false).'#product-images',
                 'status' => 'success',
                 'message' => 'Product created successfully',
             ]);
@@ -102,7 +108,7 @@ class ProductController extends Controller implements HasMiddleware
 
             return response()->json([
                 'id' => $product->id,
-                'redirect_url' => route('admin.digital-products.edit', $product->id).'#product-images',
+                'redirect_url' => route('admin.digital-products.edit', $product->id, false).'#product-images',
                 'status' => 'success',
                 'message' => 'Product created successfully',
             ]);
@@ -142,8 +148,10 @@ class ProductController extends Controller implements HasMiddleware
         $brands = $this->availableBrands();
         $tags = $this->availableTags();
         $categories = $this->nestedCategories();
+        $attributesWithValues = $product?->attributeWithValues ?? collect();
+        $variants = $product?->variants ?? collect();
 
-        return view('admin.product.digital-edit', compact('stores', 'brands', 'tags', 'categories', 'product', 'productCategoryIds', 'productTagIds'));
+        return view('admin.product.digital-edit', compact('stores', 'brands', 'tags', 'categories', 'product', 'productCategoryIds', 'productTagIds', 'attributesWithValues', 'variants'));
     }
 
     public function uploadDigitalProductFile(Request $request)
@@ -295,11 +303,11 @@ class ProductController extends Controller implements HasMiddleware
         $product->short_description = $request->short_description;
         $product->description = $request->content;
         $product->sku = $request->sku;
-        $product->price = $request->price;
-        $product->special_price = $request->special_price;
+        $product->price = $request->filled('price') ? $request->price : 0;
+        $product->special_price = $request->filled('special_price') ? $request->special_price : 0;
         $product->special_price_start = $request->from_date;
         $product->special_price_end = $request->to_date;
-        $product->qty = $request->quantity;
+        $product->qty = $request->filled('quantity') ? $request->quantity : 0;
         $product->manage_stock = $request->has('manage_stock') ? 'yes' : 'no';
         $product->in_stock = $request->stock_status == 'in_stock' ? 1 : 0;
         $product->status = $request->status;
@@ -323,7 +331,7 @@ class ProductController extends Controller implements HasMiddleware
             'id' => $product->id,
             'status' => 'success',
             'message' => 'Product updated successfully',
-            'redirect_url' => route('admin.products.index'),
+            'redirect_url' => route('admin.products.index', absolute: false),
         ]);
     }
 
