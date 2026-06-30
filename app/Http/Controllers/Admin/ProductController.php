@@ -381,13 +381,19 @@ class ProductController extends Controller implements HasMiddleware
             'attribute_type' => ['required', 'string', 'in:text,color'],
         ]);
 
+        [$labels, $colors] = $this->normalizeAttributeValues($request);
+
+        if (empty($labels)) {
+            return response()->json(['error' => 'Add at least one attribute value.'], 422);
+        }
+
         DB::beginTransaction();
 
         try {
             if ($request->filled('attribute_id')) {
-                $this->updateExistingAttribute($request, $product);
+                $this->updateExistingAttribute($request, $product, $labels, $colors);
             } else {
-                $this->createNewAttribute($request, $product);
+                $this->createNewAttribute($request, $product, $labels, $colors);
             }
 
             DB::commit();
@@ -403,17 +409,17 @@ class ProductController extends Controller implements HasMiddleware
         return $this->buildSuccessResponse($product);
     }
 
-    public function createNewAttribute(Request $request, Product $product)
+    public function createNewAttribute(Request $request, Product $product, array $labels, array $colors)
     {
         $attribute = new Attribute;
         $attribute->name = $request->attribute_name;
         $attribute->type = $request->attribute_type;
         $attribute->save();
 
-        $this->addAttributesValue($attribute, $request, $product);
+        $this->addAttributesValue($attribute, $labels, $colors, $product);
     }
 
-    public function updateExistingAttribute(Request $request, Product $product)
+    public function updateExistingAttribute(Request $request, Product $product, array $labels, array $colors)
     {
         $attribute = Attribute::findOrFail($request->attribute_id);
         $attribute->name = $request->attribute_name;
@@ -424,7 +430,7 @@ class ProductController extends Controller implements HasMiddleware
         $this->clearAttributeData($attribute, $product);
 
         // add new attributes values
-        $this->addAttributesValue($attribute, $request, $product);
+        $this->addAttributesValue($attribute, $labels, $colors, $product);
     }
 
     public function clearAttributeData(Attribute $attribute, Product $product)
@@ -437,10 +443,8 @@ class ProductController extends Controller implements HasMiddleware
         AttributeValue::where('attribute_id', $attribute->id)->delete();
     }
 
-    public function addAttributesValue(Attribute $attribute, Request $request, Product $product)
+    public function addAttributesValue(Attribute $attribute, array $labels, array $colors, Product $product)
     {
-        $labels = $request->label ?? [];
-
         foreach ($labels as $index => $label) {
             if (empty($label)) {
                 continue;
@@ -449,7 +453,7 @@ class ProductController extends Controller implements HasMiddleware
             $attributeValue = new AttributeValue;
             $attributeValue->attribute_id = $attribute->id;
             $attributeValue->value = $label;
-            $attributeValue->color = $request->color_value[$index] ?? null;
+            $attributeValue->color = $colors[$index] ?? null;
             $attributeValue->save();
 
             // link to product
@@ -459,6 +463,25 @@ class ProductController extends Controller implements HasMiddleware
                 'attribute_value_id' => $attributeValue->id,
             ]);
         }
+    }
+
+    protected function normalizeAttributeValues(Request $request): array
+    {
+        $labels = [];
+        $colors = [];
+
+        foreach (($request->label ?? []) as $index => $label) {
+            $label = trim((string) $label);
+
+            if ($label === '') {
+                continue;
+            }
+
+            $labels[] = $label;
+            $colors[] = $request->color_value[$index] ?? null;
+        }
+
+        return [$labels, $colors];
     }
 
     public function buildSuccessResponse(Product $product)

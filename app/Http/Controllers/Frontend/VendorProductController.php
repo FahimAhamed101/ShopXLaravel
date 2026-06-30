@@ -384,13 +384,19 @@ class VendorProductController extends Controller
             'attribute_type' => ['required', 'string', 'in:text,color'],
         ]);
 
+        [$labels, $colors] = $this->normalizeAttributeValues($request);
+
+        if (empty($labels)) {
+            return response()->json(['error' => 'Add at least one attribute value.'], 422);
+        }
+
         DB::beginTransaction();
 
         try {
             if ($request->filled('attribute_id')) {
-                $this->updateExistingAttribute($request, $product);
+                $this->updateExistingAttribute($request, $product, $labels, $colors);
             } else {
-                $this->createNewAttribute($request, $product);
+                $this->createNewAttribute($request, $product, $labels, $colors);
             }
 
             DB::commit();
@@ -406,7 +412,7 @@ class VendorProductController extends Controller
         return $this->buildSuccessResponse($product);
     }
 
-    function createNewAttribute(Request $request, Product $product)
+    function createNewAttribute(Request $request, Product $product, array $labels, array $colors)
     {
         $this->ensureVendorOwnsProduct($product);
 
@@ -415,10 +421,10 @@ class VendorProductController extends Controller
         $attribute->type = $request->attribute_type;
         $attribute->save();
 
-        $this->addAttributesValue($attribute, $request, $product);
+        $this->addAttributesValue($attribute, $labels, $colors, $product);
     }
 
-    function updateExistingAttribute(Request $request, Product $product)
+    function updateExistingAttribute(Request $request, Product $product, array $labels, array $colors)
     {
         $this->ensureVendorOwnsProduct($product);
 
@@ -431,7 +437,7 @@ class VendorProductController extends Controller
         $this->clearAttributeData($attribute, $product);
 
         // add new attributes values
-        $this->addAttributesValue($attribute, $request, $product);
+        $this->addAttributesValue($attribute, $labels, $colors, $product);
     }
 
     function clearAttributeData(Attribute $attribute, Product $product)
@@ -446,11 +452,9 @@ class VendorProductController extends Controller
         AttributeValue::where('attribute_id', $attribute->id)->delete();
     }
 
-    function addAttributesValue(Attribute $attribute, Request $request, Product $product)
+    function addAttributesValue(Attribute $attribute, array $labels, array $colors, Product $product)
     {
         $this->ensureVendorOwnsProduct($product);
-
-        $labels = $request->label ?? [];
 
         foreach ($labels as $index => $label) {
             if (empty($label)) continue;
@@ -458,7 +462,7 @@ class VendorProductController extends Controller
             $attributeValue = new AttributeValue();
             $attributeValue->attribute_id = $attribute->id;
             $attributeValue->value = $label;
-            $attributeValue->color = $request->color_value[$index] ?? null;
+            $attributeValue->color = $colors[$index] ?? null;
             $attributeValue->save();
 
             // link to product
@@ -468,6 +472,25 @@ class VendorProductController extends Controller
                 'attribute_value_id' => $attributeValue->id
             ]);
         }
+    }
+
+    protected function normalizeAttributeValues(Request $request): array
+    {
+        $labels = [];
+        $colors = [];
+
+        foreach (($request->label ?? []) as $index => $label) {
+            $label = trim((string) $label);
+
+            if ($label === '') {
+                continue;
+            }
+
+            $labels[] = $label;
+            $colors[] = $request->color_value[$index] ?? null;
+        }
+
+        return [$labels, $colors];
     }
 
     function buildSuccessResponse(Product $product)

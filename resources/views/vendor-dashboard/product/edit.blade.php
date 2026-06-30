@@ -551,9 +551,54 @@
                 $container.find('.color-preview').each(function() {
                     const $this = $(this);
                     const pickerId = $this.attr('id');
-                    const currentColor = $this.css('background-color') || '#oooooo';
+                    const currentColor = $this.css('background-color') || '#000000';
                     createPicker(pickerId, currentColor, `input[data-picker-id="${pickerId}"]`);
                 })
+            }
+
+            function buildAttributeRowHtml(type, label = '', pickerId = generateUniqueId()) {
+                if (type === 'color') {
+                    return `
+                    <tr>
+                        <td>
+                            <input type="text" name="label[]" class="form-control label-input" value="${label}" placeholder="Label">
+                        </td>
+                        <td>
+                            <div class="d-flex align-items-center gap-2">
+                                <div id="${pickerId}" class="color-preview" style="background-color:#000000"></div>
+                                <input type="hidden" class="color-value" data-picker-id="${pickerId}" name="color_value[]" value="#000000">
+                                <span class="review-row-btn ms-2"><i class="ti ti-trash"></i></span>
+                            </div>
+                        </td>
+                    </tr>
+                    `;
+                }
+
+                return `
+                    <tr>
+                        <td colspan="2">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <input type="text" class="form-control label-input" name="label[]" placeholder="Label" value="${label}">
+                                <span class="review-row-btn ms-2"><i class="ti ti-trash"></i></span>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            }
+
+            function appendAttributeRow($accordionBody, type, label = '') {
+                const pickerId = generateUniqueId();
+                const $table = $accordionBody.find('.section-table');
+                const $tbody = $table.find('tbody');
+
+                $table.show();
+                $tbody.append(buildAttributeRowHtml(type, label, pickerId));
+
+                if (type === 'color') {
+                    createPicker(pickerId, '#000000', `input[data-picker-id="${pickerId}"]`);
+                }
+
+                return pickerId;
             }
 
 
@@ -620,54 +665,19 @@
                 `;
 
                 $('#accordion-default').append(accordionItem);
+                const collapseEl = document.getElementById(collapseId);
+                if (collapseEl && window.bootstrap) {
+                    bootstrap.Collapse.getOrCreateInstance(collapseEl, { toggle: false }).show();
+                }
+
+                appendAttributeRow($(`#${collapseId}`).find('.accordion-body'), 'text');
             })
 
 
             $(document).on('click', '.add-row-btn', function() {
                 const accordionBody = $(this).closest('.accordion-body');
                 const type = accordionBody.find('.main-type').val();
-                const table = accordionBody.find('.section-table');
-                const tbody = table.find('tbody');
-                table.show();
-
-                const pickerId = generateUniqueId();
-                let rowHtml = '';
-
-
-                if (type === 'color') {
-                    rowHtml = `
-                    <tr>
-                        <td>
-                            <input type="text" name="label[]" id="" class="form-control label-input" class="Label">
-                        </td>
-                        <td>
-                            <div class="d-flex align-items-center gap-2">
-                                <div id="${pickerId}" class="color-preview"> </div>
-                                <input type="hidden" class="color-value" data-picker-id="${pickerId}" name="color_value[]" >
-                                <span class="review-row-btn ms-2"><i class="ti ti-trash"></i></span>
-                            </div>
-
-                        </td>
-                    </tr>
-                    `
-                } else {
-                    rowHtml = `
-                    <tr>
-                        <td colspan="2">
-                            <div class="d-flex justify-content-between align-items-center">
-                                <input type="text" class="form-control label-input" name="label[]" placeholder="Label">
-                                <span class="review-row-btn ms-2"><i class="ti ti-trash"></i></span>
-                            </div>
-                        </td>
-                    </tr>
-                    `
-                }
-
-                tbody.append(rowHtml);
-
-                if (type === 'color') {
-                    createPicker(pickerId, '#000000', `input[data-picker-id="${pickerId}"]`);
-                }
+                appendAttributeRow(accordionBody, type);
             })
 
 
@@ -707,46 +717,12 @@
 
                 tbody.empty();
 
+                if (labels.length === 0) {
+                    labels.push('');
+                }
+
                 labels.forEach(label => {
-                    const pickerId = generateUniqueId();
-                    let rowHtml = '';
-
-                    if (type === 'color') {
-                        rowHtml = `
-                    <tr>
-                        <td>
-                            <input type="text" name="label[]" id="" class="form-control label-input" class="Label" value="${label}">
-                        </td>
-                        <td>
-                            <div class="d-flex align-items-center gap-2">
-                                <div id="${pickerId}" class="color-preview"> </div>
-                                <input type="hidden" class="color-value" data-picker-id="${pickerId}" name="color_value[]">
-                                <span class="review-row-btn ms-2"><i class="ti ti-trash"></i></span>
-                            </div>
-
-                        </td>
-                    </tr>
-                    `
-                    } else {
-                        rowHtml = `
-                    <tr>
-                        <td colspan="2">
-                            <div class="d-flex justify-content-between align-items-center">
-                                <input type="text" class="form-control label-input" name="label[]" placeholder="Label" value="${label}">
-                                <span class="review-row-btn ms-2"><i class="ti ti-trash"></i></span>
-                            </div>
-                        </td>
-                    </tr>
-                    `
-                    }
-
-                    tbody.append(rowHtml);
-
-                    if (type === 'color') {
-                        createPicker(pickerId, '#000000', `input[data-picker-id="${pickerId}"]`);
-                    }
-
-
+                    appendAttributeRow(accordionBody, type, label);
                 })
 
                 if (labels.length > 0) {
