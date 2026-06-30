@@ -244,6 +244,18 @@
                                           <a class="dropdown-item {{ setActive(['vendor.products.*', 'vendor.digital-products.edit'], 'active') }}"
                                               href="{{ route('vendor.products.index') }}">Products</a>
                                       </div>
+                                      <div class="dropend">
+                                          <a class="dropdown-item"
+                                              href="{{ route('vendor.products.create', ['type' => 'physical']) }}">
+                                              Add Physical Product
+                                          </a>
+                                      </div>
+                                      <div class="dropend">
+                                          <a class="dropdown-item"
+                                              href="{{ route('vendor.products.create', ['type' => 'digital']) }}">
+                                              Add Digital Product
+                                          </a>
+                                      </div>
 
                                   </div>
 

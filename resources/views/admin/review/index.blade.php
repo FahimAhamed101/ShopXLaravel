@@ -4,7 +4,7 @@
     <div class="container-xl">
         <div class="card">
             <div class="card-header">
-                <h3 class="card-title">Product Tags</h3>
+                <h3 class="card-title">Product Reviews</h3>
             </div>
             <div class="card-body p-0">
                 <div class="table-responsive">

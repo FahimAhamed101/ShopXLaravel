@@ -46,7 +46,7 @@ class VendorProductController extends Controller
         $brands = $this->availableBrands();
         $tags = $this->availableTags();
         $categories = $this->nestedCategories();
-        return view('vendor-dashboard.product.create', compact('stores', 'brands', 'tags', 'categories'));
+        return view('vendor-dashboard.product.create', compact('stores', 'brands', 'tags', 'categories', 'type'));
     }
 
     function store(ProductStoreRequest $request, string $type)
@@ -345,7 +345,7 @@ class VendorProductController extends Controller
         $productImage = new ProductImage();
         $productImage->product_id = $product->id;
         $productImage->path = $filePath;
-        $productImage->order = ProductImage::where('product_id', 1)->max('order') + $product->id;
+        $productImage->order = (ProductImage::where('product_id', $product->id)->max('order') ?? 0) + 1;
         $productImage->save();
 
         return response()->json([

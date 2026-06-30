@@ -32,6 +32,8 @@
             border: 1px solid #ddd;
             border-radius: 4px;
             cursor: move;
+            overflow: hidden;
+            background: #fff;
         }
 
         .image-preview-item img {
@@ -53,6 +55,23 @@
             text-align: center;
             line-height: 24px;
             cursor: pointer;
+        }
+
+        .image-preview-item.is-uploading img {
+            opacity: 0.55;
+        }
+
+        .image-preview-status {
+            position: absolute;
+            left: 8px;
+            right: 8px;
+            bottom: 8px;
+            padding: 6px 8px;
+            border-radius: 999px;
+            background: rgba(33, 37, 41, 0.78);
+            color: #fff;
+            font-size: 12px;
+            text-align: center;
         }
 
         .image-preview-loader {
@@ -585,7 +604,7 @@
         const imageUploader = new Dropzone('#imageUploader', {
             url: "{{ route('admin.products.images.upload', $product->id ?? 0, false) }}",
             paramName: 'file',
-            maxFilesize: 10,
+            maxFilesize: 3,
             acceptedFiles: 'image/*',
             addRemoveLinks: false,
             autoProcessQueue: false,
@@ -596,27 +615,24 @@
             },
             init: function() {
                 this.on('addedfile', function(file) {
-                    const placeholderId = 'upload-' + Date.now();
-                    // addImagePreview(response.path, response.id);
+                    const placeholderId = `upload-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
                     file.placeholderId = placeholderId;
-                    addUploadPlaceholder(placeholderId);
+                    addUploadPreview(file, placeholderId);
                 });
 
                 this.on('success', function(file, response) {
-                    $(`#${file.placeholderId}`).remove();
                     if (response.path) {
-                        addImagePreview(response.path, response.id);
+                        finalizeImagePreview(file.placeholderId, response.path, response.id);
                     } else {
-                        console.error("Invalid response format");
+                        removeImagePreview(file.placeholderId);
+                        notyf.error('Image uploaded but preview data was missing.');
                     }
-                    // addImagePreview(response.path, file.placeholderId);
                     this.removeFile(file);
                 });
 
                 this.on('error', function(file, errorMessage) {
-                    console.error(errorMessage);
-                    $(`#${file.placeholderId}`).remove();
-                    notyf.error(errorMessage?.message || 'Image upload failed.');
+                    removeImagePreview(file.placeholderId);
+                    notyf.error(getUploadErrorMessage(errorMessage));
                     this.removeFile(file);
                 });
 
@@ -628,45 +644,70 @@
             }
         })
 
-        function addUploadPlaceholder(placeholderId) {
-            const placeholderHtml = `
-                <div id="${placeholderId}" class="image-preview-item">
-                    <div class="image-preview-loader"></div>
+        function addUploadPreview(file, placeholderId) {
+            const previewUrl = file.dataURL || URL.createObjectURL(file);
+            const previewHtml = `
+                <div id="${placeholderId}" class="image-preview-item is-uploading">
+                    <img src="${previewUrl}" alt="Uploading preview">
+                    <span class="image-preview-status">Uploading...</span>
                 </div>
             `;
 
-            $('#imagePreviewContainer').append(placeholderHtml);
+            $('#imagePreviewContainer').append(previewHtml);
         }
 
 
-        function addImagePreview(path, id) {
-            const placeholderHtml = `
-                <div class="image-preview-item" data-id="${id}">
-                    <img src="${path}" alt="Image Preview">
-                    <span class="remove-image" data-image-id="${id}">&times;</span>
-                </div>
-            `;
+        function finalizeImagePreview(placeholderId, path, id) {
+            const $preview = $(`#${placeholderId}`);
+            if (!$preview.length) {
+                return;
+            }
 
-            $('#imagePreviewContainer').append(placeholderHtml);
+            $preview.removeClass('is-uploading').attr('data-image-id', id);
+            $preview.find('img').attr({
+                src: path,
+                alt: 'Image Preview'
+            });
+            $preview.find('.image-preview-status').remove();
+            if (!$preview.find('.remove-image').length) {
+                $preview.append(`<span class="remove-image" data-image-id="${id}">&times;</span>`);
+            }
+        }
+
+        function removeImagePreview(placeholderId) {
+            $(`#${placeholderId}`).remove();
+        }
+
+        function getUploadErrorMessage(errorMessage) {
+            if (typeof errorMessage === 'string') {
+                return errorMessage;
+            }
+
+            if (errorMessage?.errors?.file?.length) {
+                return errorMessage.errors.file[0];
+            }
+
+            return errorMessage?.message || 'Image upload failed.';
         }
 
         $(document).on('click', '.remove-image', function() {
             const imageId = $(this).attr('data-image-id');
             const element = this;
 
+            if (!imageId) {
+                $(element).closest('.image-preview-item').remove();
+                return;
+            }
+
             $.ajax({
                 method: 'DELETE',
-                url: '',
+                url: "{{ route('admin.products.images.destroy', ':id') }}".replace(':id', imageId),
                 headers: {
                     'X-CSRF-TOKEN': "{{ csrf_token() }}"
                 },
                 success: function(response) {
                     $(element).closest('.image-preview-item').remove();
-                    // if (response.status === 'success') {
-                    //     $previewItem.remove();
-                    // } else {
-                    //     notyf.error('Failed to delete image.');
-                    // }
+                    notyf.success(response.message);
                 },
                 error: function(xhr, status, error) {
                     notyf.error(error);

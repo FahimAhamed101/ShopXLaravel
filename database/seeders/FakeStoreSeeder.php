@@ -128,6 +128,7 @@ class FakeStoreSeeder extends Seeder
         $profiles = [
             ['name' => 'Test User', 'email' => 'user@gmail.com', 'user_type' => 'user'],
             ['name' => 'Demo Vendor', 'email' => 'vendor@gmail.com', 'user_type' => 'vendor'],
+            ['name' => 'Demo Vendor', 'email' => 'vendor@example.com', 'user_type' => 'vendor'],
             ['name' => 'Ariana Khan', 'email' => 'ariana@shopx.test', 'user_type' => 'user'],
             ['name' => 'Mahmud Hasan', 'email' => 'mahmud@shopx.test', 'user_type' => 'user'],
             ['name' => 'Luna Fashion', 'email' => 'luna-fashion@shopx.test', 'user_type' => 'vendor'],

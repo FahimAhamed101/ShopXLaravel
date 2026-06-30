@@ -291,7 +291,7 @@
                                 @if (hasPermission(['Tags Management']))
                                     <div class="dropdown-menu-column">
                                         <a class="dropdown-item {{ setActive(['admin.tags.*']) }}"
-                                            href="{{ $adminRoute('admin.tags.index') }}">
+                                            href="{{ route('admin.tags.index') }}">
                                             Products Tags
                                         </a>
                                     </div>
@@ -312,7 +312,7 @@
                                 @if (hasPermission(['Brand Management']))
                                     <div class="dropdown-menu-column">
                                         <a class="dropdown-item {{ setActive(['admin.reviews.*']) }}"
-                                            href="{{ $adminRoute('admin.reviews.index') }}">
+                                            href="{{ route('admin.reviews.index') }}">
                                             Reviews
                                         </a>
                                     </div>

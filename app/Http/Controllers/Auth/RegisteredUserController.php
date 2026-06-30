@@ -40,18 +40,20 @@ class RegisteredUserController extends Controller
             'name' => $request->name,
             'email' => $request->email,
             'password' => Hash::make($request->password),
-            'user_type' => $request->user_type
+            'user_type' => $request->user_type,
         ]);
+
+        $user->forceFill(['email_verified_at' => now()])->save();
 
         event(new Registered($user));
 
+        Auth::guard('admin')->logout();
         Auth::login($user);
 
         if (auth('web')->user()->user_type == 'vendor') {
             return redirect(route('vendor.dashboard', absolute: false));
         }
-        else {
-            return redirect(route('dashboard', absolute: false));
-        }
+
+        return redirect(route('dashboard', absolute: false));
     }
 }

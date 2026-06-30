@@ -43,6 +43,7 @@ class RegisteredUserController extends Controller
 
         event(new Registered($user));
 
+        Auth::guard('web')->logout();
         Auth::login($user);
 
         return redirect(route('dashboard', absolute: false));

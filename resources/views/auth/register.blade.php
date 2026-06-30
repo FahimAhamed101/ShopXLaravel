@@ -40,17 +40,20 @@
                                             <x-input-error :messages="$errors->get('password_confirmation')" class="mt-2" />
                                         </div>
 
+                                        @php($selectedUserType = old('user_type', 'user'))
                                         <div class="payment_option mb-30">
                                             <div class="custome-radio">
                                                 <input class="form-check-input" required="" type="radio"
-                                                    name="user_type" id="exampleRadios3" checked="" value="user" />
+                                                    name="user_type" id="exampleRadios3"
+                                                    @checked($selectedUserType === 'user') value="user" />
                                                 <label class="form-check-label" for="exampleRadios3"
                                                     data-bs-toggle="collapse" data-target="#bankTranfer"
                                                     aria-controls="bankTranfer">I am a customer</label>
                                             </div>
                                             <div class="custome-radio">
                                                 <input class="form-check-input" required="" type="radio"
-                                                    name="user_type" id="exampleRadios4" checked="" value="vendor" />
+                                                    name="user_type" id="exampleRadios4"
+                                                    @checked($selectedUserType === 'vendor') value="vendor" />
                                                 <label class="form-check-label" for="exampleRadios4"
                                                     data-bs-toggle="collapse" data-target="#checkPayment"
                                                     aria-controls="checkPayment">I am a vendor</label>

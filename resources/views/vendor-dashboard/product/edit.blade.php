@@ -144,7 +144,7 @@
                     </div>
 
                     <div class="card">
-                        <div class="disabled-placeholder" style="{{ count($product->attributes) ? '' : 'display: none' }}">
+                        <div class="disabled-placeholder" style="{{ count($product->attributeWithValues ?? []) ? '' : 'display: none' }}">
                         </div>
                         <div class="card-header">
                             Overview
@@ -274,7 +274,7 @@
                                 <div class="accordion" id="accordion-default">
                                     @foreach ($attributesWithValues as $attribute)
                                         @include('vendor-dashboard.product.partials.attribute', [
-                                            '$attribute' => $attribute,
+                                            'attribute' => $attribute,
                                             'product' => $product,
                                         ])
                                     @endforeach

@@ -347,7 +347,7 @@ class ProductController extends Controller implements HasMiddleware
         $productImage = new ProductImage;
         $productImage->product_id = $product->id;
         $productImage->path = $filePath;
-        $productImage->order = ProductImage::where('product_id', 1)->max('order') + $product->id;
+        $productImage->order = (ProductImage::where('product_id', $product->id)->max('order') ?? 0) + 1;
         $productImage->save();
 
         return response()->json([

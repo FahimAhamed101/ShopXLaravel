@@ -32,6 +32,8 @@
             border: 1px solid #ddd;
             border-radius: 4px;
             cursor: move;
+            overflow: hidden;
+            background: #fff;
         }
 
         .image-preview-item img {
@@ -53,6 +55,23 @@
             text-align: center;
             line-height: 24px;
             cursor: pointer;
+        }
+
+        .image-preview-item.is-uploading img {
+            opacity: 0.55;
+        }
+
+        .image-preview-status {
+            position: absolute;
+            left: 8px;
+            right: 8px;
+            bottom: 8px;
+            padding: 6px 8px;
+            border-radius: 999px;
+            background: rgba(33, 37, 41, 0.78);
+            color: #fff;
+            font-size: 12px;
+            text-align: center;
         }
 
         .image-preview-loader {
@@ -91,7 +110,7 @@
 
 @section('contents')
     <div class="container-xl">
-        <form action="" class="product-form">
+        <form action="" class="product-form" data-product-type="{{ $type }}">
             @csrf
             <div class="row">
                 <div class="col-md-8">
@@ -230,6 +249,36 @@
                             </div>
                         </div>
                     </div>
+
+                    @if ($type === 'physical')
+                        <div class="card mt-3">
+                            <div class="card-header">
+                                <h3 class="card-title">Product Image</h3>
+                            </div>
+                            <div class="card-body">
+                                <div class="col-md-12">
+                                    <div class="mb-3">
+                                        <div id="imageUploader" class="dropzone"></div>
+                                        <div id="imagePreviewContainer" class="image-preview-container"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    @else
+                        <div class="card mt-3">
+                            <div class="card-header">
+                                <h3 class="card-title">Product Files</h3>
+                            </div>
+                            <div class="card-body">
+                                <div class="col-md-12">
+                                    <div class="mb-3">
+                                        <div id="fileUploader" class="dropzone"></div>
+                                        <div id="filePreviewContainer" class="file-preview-container"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    @endif
                 </div>
                 <div class="col-md-4">
                     <div class="card mb-3">
@@ -483,6 +532,8 @@
         })
 
 
+        let createdProductId = null;
+
         // submit form
         $(function() {
             $('.product-form').on('submit', function(e) {
@@ -493,11 +544,32 @@
                 $.ajax({
                     method: 'POST',
                     url: "{{ route('vendor.products.store', ['type' => ':type']) }}".replace(
-                        ':type', '{{ request()->type }}'),
+                        ':type', $(this).data('product-type')),
                     data: data,
                     contentType: false,
                     processData: false,
                     success: function(response) {
+                        createdProductId = response.id;
+
+                        if (typeof imageUploader !== 'undefined') {
+                            imageUploader.options.url = "/vendor/products/images/upload/" + response.id;
+                            imageUploader.redirectUrl = response.redirect_url;
+
+                            if (imageUploader.getQueuedFiles().length > 0) {
+                                imageUploader.processQueue();
+                                return;
+                            }
+                        }
+
+                        if (typeof fileUploader !== 'undefined') {
+                            fileUploader.redirectUrl = response.redirect_url;
+
+                            if (fileUploader.getQueuedFiles().length > 0) {
+                                fileUploader.processQueue();
+                                return;
+                            }
+                        }
+
                         if (response.status == 'success') {
                             window.location.href = response.redirect_url;
                         }
@@ -526,6 +598,145 @@
                 .replace(/[^a-z0-9\-]/g, '')
                 .replace(/\-+/g, '-')
                 .replace(/^\-+|\-+$/g, '');
+        }
+
+        @if ($type === 'physical')
+            Dropzone.autoDiscover = false;
+            const imageUploader = new Dropzone('#imageUploader', {
+                url: "{{ route('vendor.products.images.upload', ['product' => 0]) }}",
+                paramName: 'file',
+                maxFilesize: 3,
+                acceptedFiles: 'image/*',
+                addRemoveLinks: false,
+                autoProcessQueue: false,
+                uploadMultiple: false,
+                previewsContainer: false,
+                headers: {
+                    'X-CSRF-TOKEN': "{{ csrf_token() }}"
+                },
+                init: function() {
+                    this.on('addedfile', function(file) {
+                        const placeholderId = `upload-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+                        file.placeholderId = placeholderId;
+                        addUploadPreview(file, placeholderId);
+                    });
+
+                    this.on('success', function(file, response) {
+                        if (response.path) {
+                            finalizeImagePreview(file.placeholderId, response.path, response.id);
+                        } else {
+                            removeImagePreview(file.placeholderId);
+                            notyf.error('Image uploaded but preview data was missing.');
+                        }
+                        this.removeFile(file);
+                    });
+
+                    this.on('error', function(file, errorMessage) {
+                        removeImagePreview(file.placeholderId);
+                        notyf.error(getUploadErrorMessage(errorMessage));
+                        this.removeFile(file);
+                    });
+
+                    this.on('queuecomplete', function() {
+                        if (this.redirectUrl) {
+                            window.location.href = this.redirectUrl;
+                        }
+                    });
+                }
+            });
+        @else
+            Dropzone.autoDiscover = false;
+            const fileUploader = new Dropzone('#fileUploader', {
+                url: "{{ route('vendor.digital-products.file.upload') }}",
+                paramName: 'file',
+                maxFilesize: 1024,
+                chunking: true,
+                forceChunking: true,
+                chunkSize: 1024 * 1024,
+                parallelUploads: 1,
+                acceptedFiles: 'image/*, application/pdf, video/*, audio/*, application/zip, application/octet-stream, application/x-zip-compressed, application/x-rar-compressed',
+                addRemoveLinks: false,
+                autoProcessQueue: false,
+                uploadMultiple: false,
+                previewsContainer: '#filePreviewContainer',
+                previewTemplate: `<div class="dz-preview dz-file-preview">
+            <div class="dz-filename"><span data-dz-name></span></div>
+            <div class="dz-progress"><div class="dz-upload" data-dz-uploadprogress></div></div>
+            <div class="dz-percentage"><span class="progress-text">0</span>% uploaded</div>
+            <div class="dz-remove" data-dz-remove>&times;</div>
+        </div>`,
+                headers: {
+                    'X-CSRF-TOKEN': "{{ csrf_token() }}"
+                },
+                init: function() {
+                    this.on('uploadprogress', function(file, progress) {
+                        file.previewElement.querySelector('.progress-text').textContent = progress.toFixed(0);
+                    });
+
+                    this.on('sending', function(file, xhr, formData) {
+                        formData.append('name', file.upload.filename);
+                        formData.append('product_id', createdProductId);
+                    });
+
+                    this.on('success', function() {
+                        if (this.redirectUrl) {
+                            window.location.href = this.redirectUrl;
+                        }
+                    });
+
+                    this.on('error', function(file, response) {
+                        console.error(response);
+                        if (response.status === 'error') {
+                            notyf.error(response.message);
+                        }
+                    });
+                }
+            });
+        @endif
+
+        function addUploadPreview(file, placeholderId) {
+            const previewUrl = file.dataURL || URL.createObjectURL(file);
+            const previewHtml = `
+                <div id="${placeholderId}" class="image-preview-item is-uploading">
+                    <img src="${previewUrl}" alt="Uploading preview">
+                    <span class="image-preview-status">Uploading...</span>
+                </div>
+            `;
+
+            $('#imagePreviewContainer').append(previewHtml);
+        }
+
+        function finalizeImagePreview(placeholderId, path, id) {
+            const $preview = $(`#${placeholderId}`);
+            if (!$preview.length) {
+                return;
+            }
+
+            $preview.removeClass('is-uploading').attr('data-image-id', id);
+            $preview.find('img').attr({
+                src: path,
+                alt: 'Image Preview'
+            });
+            $preview.find('.image-preview-status').remove();
+            if (!$preview.find('.remove-image').length) {
+                $preview.append(`<span class="remove-image" data-image-id="${id}">&times;</span>`);
+            }
+        }
+
+        function removeImagePreview(placeholderId) {
+            $(`#${placeholderId}`).remove();
+        }
+
+        function getUploadErrorMessage(errorMessage) {
+            if (typeof errorMessage === 'string') {
+                return errorMessage;
+            }
+
+            if (errorMessage?.errors?.file?.length) {
+                return errorMessage.errors.file[0];
+            }
+
+            return errorMessage?.message || 'Image upload failed.';
         }
     </script>
 @endpush

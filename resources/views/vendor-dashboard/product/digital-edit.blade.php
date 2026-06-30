@@ -194,7 +194,7 @@
                     </div>
 
                     <div class="card">
-                        <div class="disabled-placeholder" style="{{ count($product->attributes) ? '' : 'display: none' }}">
+                        <div class="disabled-placeholder" style="{{ count($product->attributeWithValues ?? []) ? '' : 'display: none' }}">
                         </div>
                         <div class="card-header">
                             Overview

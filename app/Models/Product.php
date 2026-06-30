@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 class Product extends Model
@@ -147,7 +148,51 @@ class Product extends Model
 
     public function getAttributeWithValuesAttribute(): Collection
     {
-        return collect();
+        if (
+            ! Schema::hasTable('product_attribute_values')
+            || ! Schema::hasColumn('product_attribute_values', 'product_id')
+            || ! Schema::hasColumn('product_attribute_values', 'attribute_id')
+            || ! Schema::hasColumn('product_attribute_values', 'attribute_value_id')
+        ) {
+            return collect();
+        }
+
+        $pivotRows = DB::table('product_attribute_values')
+            ->where('product_id', $this->id)
+            ->get()
+            ->groupBy('attribute_id');
+
+        if ($pivotRows->isEmpty()) {
+            return collect();
+        }
+
+        $attributes = Attribute::query()
+            ->whereIn('id', $pivotRows->keys())
+            ->get()
+            ->keyBy('id');
+
+        $attributeValues = AttributeValue::query()
+            ->whereIn('id', $pivotRows->flatten(1)->pluck('attribute_value_id')->unique())
+            ->get()
+            ->keyBy('id');
+
+        return $pivotRows->map(function ($rows, $attributeId) use ($attributes, $attributeValues) {
+            $attribute = $attributes->get($attributeId);
+
+            if (! $attribute) {
+                return null;
+            }
+
+            $values = $rows
+                ->pluck('attribute_value_id')
+                ->map(fn ($valueId) => $attributeValues->get($valueId))
+                ->filter()
+                ->values();
+
+            $attribute->setRelation('values', $values);
+
+            return $attribute;
+        })->filter()->values();
     }
 
     public function getTagsAttribute(): Collection

@@ -131,7 +131,7 @@ Route::middleware('auth:admin','role:Admin|Super Admin')
 
         /** Tags Routes */
         if (class_exists(TagController::class)) {
-            Route::resource('/tags', TagController::class);
+            Route::resource('/tags', TagController::class)->except(['show']);
         }
 
         /** Brand Routes */
