@@ -47,6 +47,15 @@ Route::get('vendors/{vendor}', [VendorPageController::class, 'show'])->name('ven
 /** Flash Sale Route */
 Route::get('/flash-sales', [HomeController::class, 'flashSales'])->name('flash-sales.index');
 
+/** Cart Routes */
+Route::get('/cart', [CartController::class, 'index'])->name('cart.index');
+Route::post('/add-to-cart', [CartController::class, 'addToCart'])->name('cart.add');
+Route::put('/update-cart', [CartController::class, 'updateCart'])->name('cart.update');
+Route::delete('/cart/{id}', [CartController::class, 'destroy'])->name('cart.destroy');
+
+Route::post('/cart/coupon', [CartController::class, 'applyCoupon'])->name('cart.coupon');
+Route::delete('/cart/coupon/remove', [CartController::class, 'destroyCoupon'])->name('cart.coupon.destroy');
+
 
 
 
@@ -66,15 +75,6 @@ Route::group(['middleware' => ['auth', 'verified']], function () {
     /** KYC Routes */
     Route::get('/kyc-verification', [KycController::class, 'index'])->name('kyc.index');
     Route::post('/kyc-verification', [KycController::class, 'store'])->name('kyc.store');
-
-    /** Cart Routes */
-    Route::get('/cart', [CartController::class, 'index'])->name('cart.index');
-    Route::post('/add-to-cart', [CartController::class, 'addToCart'])->name('cart.add');
-    Route::put('/update-cart', [CartController::class, 'updateCart'])->name('cart.update');
-    Route::delete('/cart/{id}', [CartController::class, 'destroy'])->name('cart.destroy');
-
-    Route::post('/cart/coupon', [CartController::class, 'applyCoupon'])->name('cart.coupon');
-    Route::delete('/cart/coupon/remove', [CartController::class, 'destroyCoupon'])->name('cart.coupon.destroy');
 
     Route::get('/checkout', [CheckoutController::class, 'index'])->name('checkout.index');
     Route::get('/shipping-method/{id}', [CheckoutController::class, 'shippingMethod'])->name('checkout.shipping');

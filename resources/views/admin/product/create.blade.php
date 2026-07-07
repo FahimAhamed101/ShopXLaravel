@@ -264,6 +264,23 @@
                             </div>
                         </div>
                     </div>
+
+                    <div class="card mt-3">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h3 class="card-title mb-0">Product Variations</h3>
+                            <span class="badge bg-secondary">After save</span>
+                        </div>
+                        <div class="card-body">
+                            <p class="mb-2">
+                                Save the product first, then open the product editor to add attributes such as color,
+                                size, material, or any other variation you need.
+                            </p>
+                            <p class="mb-0 text-muted">
+                                Once the product is created, you can generate variants, set variant prices, and manage
+                                per-variant stock from the edit page.
+                            </p>
+                        </div>
+                    </div>
                 </div>
                 <div class="col-md-4">
                     <div class="card mb-3">
@@ -554,6 +571,9 @@
                         imageUploader.options.url =
                             "/admin/products/images/upload/" + response.id;
                         imageUploader.redirectUrl = response.redirect_url;
+                        notyf.success(
+                            'Product created successfully. You can now add colors, sizes, and other variations.'
+                        );
 
                         // 🚀 NOW upload images
                         if (imageUploader.getQueuedFiles().length > 0) {

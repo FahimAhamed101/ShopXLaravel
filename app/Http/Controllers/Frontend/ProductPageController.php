@@ -147,6 +147,10 @@ class ProductPageController extends Controller
                 ->withAvg('reviews', 'rating');
         }
 
+        if ($this->variantFeaturesReady()) {
+            $productQuery->with(['variants.attributeValues']);
+        }
+
         $product = $productQuery->where('slug', $slug)->firstOrFail();
 
         $relatedProductsQuery = Product::query()

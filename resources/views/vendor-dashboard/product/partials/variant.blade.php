@@ -14,10 +14,10 @@
         </button>
 
     </div>
-    <div id="variant-{{ $variant->id }}" class="accordion-collapse collapse" data-bs-parent="#accordion-default"
+    <div id="variant-{{ $variant->id }}" class="accordion-collapse collapse" data-bs-parent="#accordion-variant"
         style="">
         <div class="accordion-body">
-            <form action="" class="variant-form">
+            <div class="variant-form">
                 @csrf
                 <div class="row">
                     <input type="hidden" name="variant_id" value="{{ $variant->id }}">
@@ -91,9 +91,9 @@
                 </div>
 
                 <div class="mt-2">
-                    <button class="btn  btn-success variant-save-btn" type="submit">Save</button>
+                    <button class="btn  btn-success variant-save-btn" type="button">Save</button>
                 </div>
-            </form>
+            </div>
         </div>
     </div>
 </div>

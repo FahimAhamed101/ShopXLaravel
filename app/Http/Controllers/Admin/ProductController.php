@@ -102,7 +102,7 @@ class ProductController extends Controller implements HasMiddleware
                 'id' => $product->id,
                 'redirect_url' => route('admin.products.edit', $product->id, false).'#product-images',
                 'status' => 'success',
-                'message' => 'Product created successfully',
+                'message' => 'Product created successfully. You can now add attributes and variants.',
             ]);
         } else {
 
@@ -110,7 +110,7 @@ class ProductController extends Controller implements HasMiddleware
                 'id' => $product->id,
                 'redirect_url' => route('admin.digital-products.edit', $product->id, false).'#product-images',
                 'status' => 'success',
-                'message' => 'Product created successfully',
+                'message' => 'Product created successfully. You can now add attributes and variants.',
             ]);
         }
     }
@@ -320,10 +320,10 @@ class ProductController extends Controller implements HasMiddleware
         $product->save();
 
         /** Attach categories */
-        $product->categories()->sync($request->categories);
+        $product->categories()->sync($request->input('categories', []));
 
         /** Attach tags */
-        $product->tags()->sync($request->tags);
+        $product->tags()->sync($request->input('tags', []));
 
         AlertService::created();
 
@@ -411,10 +411,18 @@ class ProductController extends Controller implements HasMiddleware
 
     public function createNewAttribute(Request $request, Product $product, array $labels, array $colors)
     {
-        $attribute = new Attribute;
-        $attribute->name = $request->attribute_name;
-        $attribute->type = $request->attribute_type;
-        $attribute->save();
+        $attribute = $this->findProductAttributeByName($product, $request->attribute_name);
+
+        if ($attribute) {
+            $attribute->type = $request->attribute_type;
+            $attribute->save();
+            $this->clearAttributeData($attribute, $product);
+        } else {
+            $attribute = new Attribute;
+            $attribute->name = $request->attribute_name;
+            $attribute->type = $request->attribute_type;
+            $attribute->save();
+        }
 
         $this->addAttributesValue($attribute, $labels, $colors, $product);
     }
@@ -422,15 +430,21 @@ class ProductController extends Controller implements HasMiddleware
     public function updateExistingAttribute(Request $request, Product $product, array $labels, array $colors)
     {
         $attribute = Attribute::findOrFail($request->attribute_id);
-        $attribute->name = $request->attribute_name;
-        $attribute->type = $request->attribute_type;
-        $attribute->save();
+        $targetAttribute = $this->findProductAttributeByName($product, $request->attribute_name, $attribute->id) ?: $attribute;
+        $targetAttribute->name = $request->attribute_name;
+        $targetAttribute->type = $request->attribute_type;
+        $targetAttribute->save();
 
         // remove existing relations and values for this attribute
-        $this->clearAttributeData($attribute, $product);
+        $this->clearAttributeData($targetAttribute, $product);
+
+        if ($targetAttribute->id !== $attribute->id) {
+            $this->clearAttributeData($attribute, $product);
+            $attribute->delete();
+        }
 
         // add new attributes values
-        $this->addAttributesValue($attribute, $labels, $colors, $product);
+        $this->addAttributesValue($targetAttribute, $labels, $colors, $product);
     }
 
     public function clearAttributeData(Attribute $attribute, Product $product)
@@ -445,10 +459,20 @@ class ProductController extends Controller implements HasMiddleware
 
     public function addAttributesValue(Attribute $attribute, array $labels, array $colors, Product $product)
     {
+        $seen = [];
+
         foreach ($labels as $index => $label) {
             if (empty($label)) {
                 continue;
             }
+
+            $dedupeKey = mb_strtolower(trim((string) $label)).'|'.($colors[$index] ?? '');
+
+            if (isset($seen[$dedupeKey])) {
+                continue;
+            }
+
+            $seen[$dedupeKey] = true;
 
             $attributeValue = new AttributeValue;
             $attributeValue->attribute_id = $attribute->id;
@@ -518,11 +542,10 @@ class ProductController extends Controller implements HasMiddleware
             $this->clearAttributeData($attribute, $product);
             $this->regenerateProductVariants($product);
 
+            $attribute->delete();
             $product->refresh();
 
             $attributes = $product->attributeWithValues;
-
-            $attribute->delete();
 
             $html = '';
             $variantHtml = '';
@@ -548,6 +571,8 @@ class ProductController extends Controller implements HasMiddleware
 
     public function regenerateProductVariants(Product $product)
     {
+        $existingVariants = $this->existingVariantDataByCombination($product);
+
         // clear existing variants
         $this->clearExistingVariants($product);
 
@@ -560,21 +585,39 @@ class ProductController extends Controller implements HasMiddleware
 
         $combinations = $this->cartesianProduct($attributeGroups);
 
-        $this->createVariantsFromCombinations($product, $combinations);
+        $this->createVariantsFromCombinations($product, $combinations, $existingVariants);
     }
 
     public function getAttributeGroups(Product $product)
     {
-        $groupedAttributes = DB::table('product_attribute_values')
+        $rows = DB::table('product_attribute_values')
             ->where('product_id', $product->id)
-            ->get()->groupBy('attribute_id');
+            ->get();
 
-        $attributeGroups = collect();
-
-        foreach ($groupedAttributes as $attributeId => $items) {
-            $attributeValues = AttributeValue::whereIn('id', $items->pluck('attribute_value_id'))->get();
-            $attributeGroups->push($attributeValues);
+        if ($rows->isEmpty()) {
+            return collect();
         }
+
+        $attributes = Attribute::whereIn('id', $rows->pluck('attribute_id')->unique())
+            ->get()
+            ->keyBy('id');
+
+        $attributeValues = AttributeValue::whereIn('id', $rows->pluck('attribute_value_id')->unique())
+            ->get()
+            ->keyBy('id');
+
+        $attributeGroups = $rows
+            ->groupBy(fn ($row) => mb_strtolower(trim((string) optional($attributes->get($row->attribute_id))->name)))
+            ->map(function ($items) use ($attributeValues) {
+                return $items
+                    ->pluck('attribute_value_id')
+                    ->map(fn ($id) => $attributeValues->get($id))
+                    ->filter()
+                    ->unique(fn ($value) => mb_strtolower(trim((string) $value->value)).'|'.($value->color ?? ''))
+                    ->values();
+            })
+            ->filter(fn ($values, $name) => $name !== '' && $values->isNotEmpty())
+            ->values();
 
         return $attributeGroups;
     }
@@ -598,25 +641,31 @@ class ProductController extends Controller implements HasMiddleware
         return $result;
     }
 
-    public function createVariantsFromCombinations(Product $product, array $combinations)
+    public function createVariantsFromCombinations(Product $product, array $combinations, Collection $existingVariants)
     {
-        foreach ($combinations as $combination) {
-            $variant = $this->createSingleVariant($product, $combination);
+        foreach ($combinations as $index => $combination) {
+            $variant = $this->createSingleVariant($product, $combination, $existingVariants, $index === 0);
             $this->attachAttributesToVariant($variant, $combination);
         }
     }
 
-    public function createSingleVariant(Product $product, array $combination)
+    public function createSingleVariant(Product $product, array $combination, Collection $existingVariants, bool $isFirst)
     {
         $variantName = collect($combination)->pluck('value')->implode('/');
+        $combinationKey = $this->variantCombinationKey($combination);
+        $existing = $existingVariants->get($combinationKey);
 
         return ProductVariant::create([
             'product_id' => $product->id,
             'name' => $variantName,
-            'price' => 0,
-            'sku' => '',
-            'qty' => 0,
-            'is_active' => 1,
+            'price' => $existing['price'] ?? $product->price ?? 0,
+            'special_price' => $existing['special_price'] ?? $product->special_price ?? null,
+            'sku' => $existing['sku'] ?? $this->variantSku($product, $combination),
+            'qty' => $existing['qty'] ?? $product->qty ?? 0,
+            'manage_stock' => $existing['manage_stock'] ?? ($product->manage_stock === 'yes' ? 1 : 0),
+            'in_stock' => $existing['in_stock'] ?? $product->in_stock ?? 1,
+            'is_default' => $existing['is_default'] ?? ($isFirst ? 1 : 0),
+            'is_active' => $existing['is_active'] ?? 1,
         ]);
     }
 
@@ -646,18 +695,89 @@ class ProductController extends Controller implements HasMiddleware
 
         $product = Product::findOrFail($product);
 
-        $variant = ProductVariant::findOrFail($request->variant_id);
+        $variant = $product->variants()->findOrFail($request->variant_id);
+        $isDefault = $request->boolean('variant_is_default');
+
+        if ($isDefault) {
+            $product->variants()->whereKeyNot($variant->id)->update(['is_default' => 0]);
+        }
+
         $variant->sku = $request->variant_sku;
         $variant->price = $request->variant_price;
         $variant->special_price = $request->variant_special_price;
-        $variant->manage_stock = $request->variant_manage_stock ? 1 : 0;
-        $variant->qty = $request->variant_quantity;
+        $variant->manage_stock = $request->boolean('variant_manage_stock');
+        $variant->qty = $request->boolean('variant_manage_stock') ? (int) ($request->variant_quantity ?? 0) : 0;
         $variant->in_stock = $request->variant_stock_status == 'in_stock' ? 1 : 0;
-        $variant->is_default = $request->variant_is_default;
-        $variant->is_active = $request->variant_is_active;
+        $variant->is_default = $isDefault;
+        $variant->is_active = $request->boolean('variant_is_active');
         $variant->save();
 
         return response()->json(['message' => 'Variant updated successfully']);
+    }
+
+    protected function existingVariantDataByCombination(Product $product): Collection
+    {
+        return $product->variants()
+            ->with('attributeValues')
+            ->get()
+            ->mapWithKeys(function (ProductVariant $variant) {
+                return [
+                    $this->variantCombinationKey($variant->attributeValues) => [
+                        'sku' => $variant->sku,
+                        'price' => $variant->price,
+                        'special_price' => $variant->special_price,
+                        'qty' => $variant->qty,
+                        'manage_stock' => $variant->manage_stock,
+                        'in_stock' => $variant->in_stock,
+                        'is_default' => $variant->is_default,
+                        'is_active' => $variant->is_active,
+                    ],
+                ];
+            });
+    }
+
+    protected function variantCombinationKey(iterable $attributeValues): string
+    {
+        return collect($attributeValues)
+            ->pluck('id')
+            ->map(fn ($id) => (int) $id)
+            ->sort()
+            ->implode('-');
+    }
+
+    protected function variantSku(Product $product, array $combination): string
+    {
+        $baseSku = filled($product->sku) ? $product->sku : 'product-'.$product->id;
+        $suffix = collect($combination)
+            ->pluck('value')
+            ->map(fn ($value) => \Str::slug((string) $value))
+            ->filter()
+            ->implode('-');
+
+        return $suffix ? "{$baseSku}-{$suffix}" : $baseSku;
+    }
+
+    protected function findProductAttributeByName(Product $product, string $name, ?int $exceptAttributeId = null): ?Attribute
+    {
+        $normalizedName = mb_strtolower(trim($name));
+
+        if ($normalizedName === '') {
+            return null;
+        }
+
+        $attributeIds = DB::table('product_attribute_values')
+            ->where('product_id', $product->id)
+            ->pluck('attribute_id')
+            ->unique();
+
+        if ($attributeIds->isEmpty()) {
+            return null;
+        }
+
+        return Attribute::whereIn('id', $attributeIds)
+            ->when($exceptAttributeId, fn ($query) => $query->where('id', '!=', $exceptAttributeId))
+            ->get()
+            ->first(fn ($attribute) => mb_strtolower(trim((string) $attribute->name)) === $normalizedName);
     }
 
     public function clearExistingVariants(Product $product)

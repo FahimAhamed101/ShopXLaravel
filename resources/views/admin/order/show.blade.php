@@ -166,7 +166,7 @@
                                         <select name="order_status" id="" class="form-control">
                                             @foreach (config('order_status') as $key => $status)
                                                 <option @selected($order->order_status == $key) value="{{ $key }}">
-                                                    {{ str_replace('_', ' ', $key) }}</option>
+                                                    {{ $status }}</option>
                                             @endforeach
                                         </select>
                                     </div>

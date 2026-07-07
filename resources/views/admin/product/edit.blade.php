@@ -297,6 +297,62 @@
                                             'product' => $product,
                                         ])
                                     @endforeach
+
+                                    @if (count($attributesWithValues) === 0)
+                                        <div class="accordion-item">
+                                            <div class="accordion-header" id="initial-attribute-header">
+                                                <button class="accordion-button" type="button" data-bs-toggle="collapse"
+                                                    data-bs-target="#initial-attribute-collapse" aria-expanded="true">
+                                                    New Attribute
+                                                </button>
+                                            </div>
+                                            <div id="initial-attribute-collapse" class="accordion-collapse collapse show"
+                                                data-bs-parent="#accordion-default">
+                                                <div class="accordion-body">
+                                                    <div class="attribute-form">
+                                                        @csrf
+                                                        <div class="row">
+                                                            <div class="col-md-6">
+                                                                <label class="form-label">Name</label>
+                                                                <input type="text" class="form-control" name="attribute_name"
+                                                                    placeholder="Size, Color, Material">
+                                                            </div>
+                                                            <div class="col-md-6">
+                                                                <label class="form-label">Type</label>
+                                                                <select name="attribute_type" class="form-control main-type">
+                                                                    <option value="text">Text</option>
+                                                                    <option value="color">Color</option>
+                                                                </select>
+                                                            </div>
+                                                        </div>
+                                                        <table class="table table-bordered section-table mt-3">
+                                                            <thead>
+                                                                <tr>
+                                                                    <th>Label</th>
+                                                                    <th class="value-header">Value</th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                                <tr>
+                                                                    <td colspan="2">
+                                                                        <div class="d-flex justify-content-between align-items-center">
+                                                                            <input type="text" class="form-control label-input"
+                                                                                name="label[]" placeholder="Small, Red, Cotton">
+                                                                            <span class="review-row-btn ms-2"><i class="ti ti-trash"></i></span>
+                                                                        </div>
+                                                                    </td>
+                                                                </tr>
+                                                            </tbody>
+                                                        </table>
+                                                        <div class="mt-2">
+                                                            <button class="btn btn-sm btn-primary add-row-btn" type="button">Add Row</button>
+                                                            <button class="btn btn-sm btn-success save-btn" type="button">Save</button>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    @endif
                                 </div>
 
                                 <button class="btn btn-primary mt-3" type="button" id="add-attribute-btn">Add
@@ -685,7 +741,7 @@
     </div>
     <div id="${collapseId}" class="accordion-collapse collapse" data-bs-parent="#accordion-default" style="">
         <div class="accordion-body">
-            <form action="" method="POST" >
+            <div class="attribute-form">
                 @csrf
             <div class="row">
                 <div class="col-md-6">
@@ -715,7 +771,7 @@
                 <button class="btn btn-sm btn-success save-btn" type="button">Save</button>
             </div>
         </div>
-        </form>
+        </div>
     </div>
 </div>
                 `;
@@ -842,8 +898,8 @@
             // save attribute
             $(document).on('click', '.save-btn', function(e) {
                 e.preventDefault();
-                const form = $(this).closest('form');
-                const data = form.serialize();
+                const form = $(this).closest('.attribute-form');
+                const data = form.find(':input').serialize();
 
                 $.ajax({
                     url: "{{ route('admin.products.attributes.store', ':id') }}".replace(':id',
@@ -861,7 +917,7 @@
                         notyf.success(response.message);
                     },
                     error: function(xhr, status, error) {
-
+                        showAjaxErrors(xhr, error || 'Unable to save attribute.');
                     }
                 })
             })
@@ -880,7 +936,7 @@
             $(document).on('click', '.variant-save-btn', function(e) {
                 e.preventDefault();
                 const form = $(this).closest('.variant-form');
-                const data = form.serialize();
+                const data = form.find(':input').serialize();
 
                 $.ajax({
                     url: "{{ route('admin.products.variants.update', ':productId') }}".replace(
@@ -891,13 +947,23 @@
                         notyf.success(response.message);
                     },
                     error: function(xhr, status, error) {
-                        const errors = xhr.responseJSON.errors;
-                        $.each(errors, function(key, value) {
-                            notyf.error(errors[key][0]);
-                        });
+                        showAjaxErrors(xhr, error || 'Unable to save variant.');
                     }
                 })
             })
+
+            function showAjaxErrors(xhr, fallbackMessage) {
+                const response = xhr.responseJSON || {};
+
+                if (response.errors) {
+                    $.each(response.errors, function(key, messages) {
+                        notyf.error(messages[0]);
+                    });
+                    return;
+                }
+
+                notyf.error(response.error || response.message || fallbackMessage);
+            }
         })
     </script>
 

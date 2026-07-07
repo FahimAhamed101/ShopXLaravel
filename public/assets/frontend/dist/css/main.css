@@ -102,6 +102,104 @@ video {
   vertical-align: baseline;
 }
 
+.product-option-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.product-option-row > strong {
+  flex: 0 0 64px;
+  line-height: 36px;
+  text-transform: capitalize;
+}
+
+.product-option-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+}
+
+.product-option-list li {
+  display: inline-flex;
+}
+
+.product-option-list li a {
+  border: 1px solid #d9d9d9;
+  border-radius: 4px;
+  box-shadow: none;
+  transition: border-color 0.15s ease, background-color 0.15s ease, color 0.15s ease;
+}
+
+.product-text-options li a,
+.product-text-options.list-filter li a,
+.product-text-option {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 46px !important;
+  width: auto !important;
+  height: 34px !important;
+  line-height: 1 !important;
+  padding: 0 13px !important;
+  background: #fff !important;
+  color: #333 !important;
+  white-space: nowrap;
+}
+
+.product-text-options li.active a,
+.product-text-options li a:hover {
+  background: var(--colorSecondary) !important;
+  border-color: var(--colorSecondary) !important;
+  color: #fff !important;
+}
+
+.product-color-options li a,
+.product-color-swatch {
+  display: block;
+  width: 34px !important;
+  min-width: 34px !important;
+  height: 34px !important;
+  border-radius: 50%;
+}
+
+.product-color-options li.active a,
+.product-color-options li a:hover {
+  outline: 2px solid var(--colorSecondary);
+  outline-offset: 2px;
+  border-color: #fff;
+}
+
+.product-color-options li.active a::after {
+  position: absolute;
+  content: "\f00c";
+  font-family: "Font Awesome 6 Free";
+  font-weight: 600;
+  font-size: 14px;
+  color: #fff;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.product-detail .detail-extralink {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.product-detail .product-extra-link2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 thead {
   font-weight: 600;
 }

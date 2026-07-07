@@ -4,7 +4,14 @@
     <div class="container-xl">
         <div class="card">
             <div class="card-header">
-                <h3 class="card-title">All Orders</h3>
+                <div>
+                    <h3 class="card-title mb-1">
+                        {{ $status ? ucfirst(str_replace('_', ' ', $status)) . ' Orders' : 'All Orders' }}
+                    </h3>
+                    @if($status)
+                        <div class="text-secondary">Filtered by status: {{ ucfirst(str_replace('_', ' ', $status)) }}</div>
+                    @endif
+                </div>
             </div>
             <div class="card-body p-0">
                 <div class="table-responsive">
@@ -55,7 +62,7 @@
                                         @endif
                                     </td>
                                     <td>
-                                        {{ $order->order_status }}
+                                        <span class="badge bg-info-lt">{{ $order->order_status }}</span>
                                     </td>
                                     <td>
                                         {{ date('Y-m-d', strtotime($order->created_at)) }}
@@ -71,7 +78,7 @@
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="9" class="text-center">No Orders</td>
+                                    <td colspan="9" class="text-center">No orders found for this status.</td>
                                 </tr>
                             @endforelse
 

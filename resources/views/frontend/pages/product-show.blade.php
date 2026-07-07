@@ -5,6 +5,7 @@
         $store = $product->store ?? null;
         $reviewsAverage = $product->reviews_avg_rating ?? 0;
         $reviewsCount = $product->reviews_count ?? 0;
+        $availableVariants = $product->variants->where('is_active', 1)->values();
     @endphp
     <x-frontend.breadcrumb :items="[['label' => 'Home', 'url' => '/'], ['label' => 'Products']]" />
     <div class="container mb-30">
@@ -75,18 +76,19 @@
                                     <p class="font-lg">{!! $product->short_description !!}</p>
                                 </div>
                                 @foreach ($product->attributeWithValues as $attribute)
-                                    <div class="attr-detail attr-size mb-20">
+                                    <div class="attr-detail product-option-row mb-20">
                                         <strong class="mr-10">{{ $attribute->name }}: </strong>
-                                        <ul class=" attribute-group color_filter list-filter size-filter font-small"
+                                        <ul class="attribute-group product-option-list list-filter font-small {{ $attribute->type == 'color' ? 'product-color-options' : 'product-text-options size-filter' }}"
                                             data-attribute="{{ $attribute->id }}">
                                             @foreach ($attribute->values as $value)
                                                 @if ($attribute->type == 'color')
                                                     <li class="attribute-badge" data-value="{{ $value->id }}"><a
-                                                            href="#" style="background: {{ $value->color }};"></a>
+                                                            href="#" class="product-color-swatch" title="{{ $value->value }}"
+                                                            style="background: {{ $value->color ?: '#f5f5f5' }};"></a>
                                                     </li>
                                                 @else
                                                     <li class="attribute-badge" data-value="{{ $value->id }}"><a
-                                                            href="#">{{ $value->value }}</a></li>
+                                                            href="#" class="product-text-option">{{ $value->value }}</a></li>
                                                 @endif
                                             @endforeach
 
@@ -95,7 +97,7 @@
                                 @endforeach
                                 <input type="hidden" id="variants-data"
                                     value="{{ json_encode(
-                                        $product->variants->map(function ($variant) {
+                                        $availableVariants->map(function ($variant) {
                                             return [
                                                 'id' => $variant->id,
                                                 'price' => $variant->price,
@@ -121,7 +123,7 @@
                                         <a href="#" class="qty-up"><i class="fi-rs-angle-small-up"></i></a>
                                     </div>
                                     <div class="product-extra-link2">
-                                        <button type="submit" data-variant="" data-id="{{ $product->id }}"
+                                        <button type="submit" data-variant="{{ $product->primaryVariant?->id ?? '' }}" data-id="{{ $product->id }}"
                                             data-modal="false" class="button button-add-to-cart add_to_cart"><i
                                                 class="fi-rs-shopping-cart"></i>Add to cart</button>
                                         <a aria-label="Add To Wishlist" class="action-btn hover-up wishlist-btn" data-id="{{ $product->id }}"
@@ -146,7 +148,7 @@
                                             @endforeach
                                         </li>
                                         <li>Stock:<span class="in-stock text-brand ml-5"><span class="stock-qty">
-                                                    @if ($product->manage_stock == 1)
+                                                    @if ($product->manage_stock === 'yes' || $product->manage_stock == 1)
                                                         {{ $product->qty }}
                                                     @else
                                                         Unlimited
@@ -365,17 +367,17 @@
         });
 
         $(function() {
-            const variantsData = JSON.parse($('#variants-data').val());
+            const variantsData = JSON.parse($('#variants-data').val() || '[]');
             let selectedValues = new Set();
 
             function selectDefaultVariant() {
                 if (variantsData.length > 0) {
-                    const defaultVariant = variantsData[0];
+                    const defaultVariant = variantsData.find(variant => parseInt(variant.is_default) === 1) || variantsData[0];
 
                     defaultVariant.attribute_values.forEach(valueId => {
                         const $badge = $(`.attribute-badge[data-value="${valueId}"]`);
                         $badge.addClass('active');
-                        selectedValues.add(valueId);
+                        selectedValues.add(parseInt(valueId));
                     })
                 }
 
@@ -384,6 +386,8 @@
 
             $('.attribute-badge').on('click', function() {
                 const $attributeGroup = $(this).closest('.attribute-group');
+                $attributeGroup.find('.attribute-badge').removeClass('active');
+                $(this).addClass('active');
 
                 selectedValues = new Set(
                     $('.attribute-badge.active').map(function() {
@@ -396,15 +400,17 @@
 
             function updatePrice() {
                 const selectedValuesArray = Array.from(selectedValues);
+                const $addToCartButton = $('.button-add-to-cart');
 
                 const matchingVariant = variantsData.find(variant => {
-                    const variantValues = new Set(variant.attribute_values);
+                    const variantValues = new Set((variant.attribute_values || []).map((value) => parseInt(value)));
                     return selectedValuesArray.length === variantValues.size && selectedValuesArray.every(
                         value => variantValues.has(value));
                 })
 
                 if (matchingVariant) {
-                    $('.button-add-to-cart').attr('data-variant', matchingVariant.id);
+                    $addToCartButton.attr('data-variant', matchingVariant.id);
+                    $('#selected-variant').val(matchingVariant.id);
 
 
                     if (matchingVariant.quantity > 0 && matchingVariant.manage_stock == 1) {
@@ -425,9 +431,12 @@
                         </div>`
 
                         $('.product-price').replaceWith(html);
+                        $addToCartButton.prop('disabled', true).addClass('disabled');
 
                         return;
                     }
+
+                    $addToCartButton.prop('disabled', false).removeClass('disabled');
 
                     if (matchingVariant.special_price > 0) {
                         var html = `
@@ -447,6 +456,12 @@
                     }
 
                     $('.product-price').replaceWith(html);
+                } else {
+                    $addToCartButton.attr('data-variant', '');
+                    $('#selected-variant').val('');
+                    if (variantsData.length > 0) {
+                        $addToCartButton.prop('disabled', true).addClass('disabled');
+                    }
                 }
 
             }

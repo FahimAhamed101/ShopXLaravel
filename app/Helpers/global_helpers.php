@@ -72,7 +72,11 @@ if (!function_exists('tableHasColumns')) {
 if (!function_exists('cartCount')) {
     function cartCount(): int
     {
-        if (!user() || !class_exists(Cart::class) || !tableHasColumns('carts', ['user_id'])) {
+        if (!user()) {
+            return count(Session::get('guest_cart', []));
+        }
+
+        if (!class_exists(Cart::class) || !tableHasColumns('carts', ['user_id'])) {
             return 0;
         }
 
@@ -95,8 +99,31 @@ if (!function_exists('wishlistCount')) {
 if (!function_exists('cartTotal')) {
     function cartTotal(): float
     {
+        if (!user()) {
+            $cartTotal = 0;
+            $cart = collect(Session::get('guest_cart', []));
+
+            if ($cart->isEmpty() || !tableHasColumns('products', ['id'])) {
+                return 0;
+            }
+
+            $products = Product::query()->whereIn('id', $cart->pluck('product_id')->filter()->unique())->get()->keyBy('id');
+
+            foreach ($cart as $cartItem) {
+                $product = $products->get($cartItem['product_id'] ?? null);
+
+                if (!$product || !method_exists($product, 'getVariantOrProductPriceAndStock')) {
+                    continue;
+                }
+
+                $priceData = $product->getVariantOrProductPriceAndStock($cartItem['variant_id'] ?? null);
+                $cartTotal += $priceData['price'] * ($cartItem['quantity'] ?? 1);
+            }
+
+            return $cartTotal;
+        }
+
         if (
-            !user() ||
             !class_exists(Cart::class) ||
             !tableHasColumns('products', ['id']) ||
             !tableHasColumns('carts', ['user_id', 'product_id', 'variant_id', 'quantity']) ||

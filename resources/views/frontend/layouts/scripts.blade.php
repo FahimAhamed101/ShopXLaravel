@@ -7,10 +7,15 @@
 
         $(function() {
 
-            function handleErrors(errors) {
-                if (errors?.message) {
+            function handleErrors(xhr) {
+                const errors = xhr.responseJSON;
+
+                if (xhr.status === 401 || errors?.message === 'Unauthenticated.') {
+                    notyf.error('Please login to continue.');
+                    window.location.href = "{{ route('login') }}";
+                } else if (errors?.message) {
                     notyf.error(errors.message);
-                } else if (errors?.error) {
+                } else if (errors?.errors) {
                     Object.values(errors.errors).forEach((err) => notyf.error(err[0]));
                 } else {
                     notyf.error('Something went wrong');
@@ -21,8 +26,11 @@
             $(document).on('click', '.add_to_cart', function(e) {
                 e.preventDefault();
                 var self = $(this);
+                if (self.prop('disabled') || self.hasClass('disabled')) {
+                    return;
+                }
                 const productId = $(this).data('id');
-                const quantity = $('.qty-val').val();
+                const quantity = self.closest('.detail-extralink').find('.qty-val').val() || $('.qty-val').first().val() || 1;
                 const variantId = $(this).attr('data-variant');
                 const modal = $(this).data('modal');
 
@@ -55,7 +63,7 @@
                             notyf.success(response.message);
                         }
                     },
-                    error: (errors) => handleErrors(errors.responseJSON),
+                    error: (xhr) => handleErrors(xhr),
                     complete: function() {
                         self.html('<i class="fi-rs-shopping-cart mr-5"></i>Add to cart');
                     }
@@ -65,7 +73,13 @@
 
             function initVariantJs() {
 
-                const variantsData = JSON.parse($('#variants-data').val());
+                const $variantsData = $('#variants-data');
+
+                if (! $variantsData.length) {
+                    return;
+                }
+
+                const variantsData = JSON.parse($variantsData.val() || '[]');
                 let selectedValues = new Set();
 
 
@@ -99,12 +113,12 @@
 
                 function selectDefaultVariant() {
                     if (variantsData.length > 0) {
-                        const defaultVariant = variantsData[0];
+                        const defaultVariant = variantsData.find(variant => parseInt(variant.is_default) === 1) || variantsData[0];
 
-                        defaultVariant.attribute_values.forEach(valueId => {
+                        (defaultVariant.attribute_values || []).forEach(valueId => {
                             const $badge = $(`.attribute-badge[data-value="${valueId}"]`);
                             $badge.addClass('active');
-                            selectedValues.add(valueId);
+                            selectedValues.add(parseInt(valueId));
                         })
                     }
 
@@ -116,8 +130,9 @@
                 //  })
 
                 $(document).on('click', '.attribute-badge', function() {
-                    console.log('working');
                     const $attributeGroup = $(this).closest('.attribute-group');
+                    $attributeGroup.find('.attribute-badge').removeClass('active');
+                    $(this).addClass('active');
 
                     selectedValues = new Set(
                         $('.attribute-badge.active').map(function() {
@@ -132,7 +147,7 @@
                     const selectedValuesArray = Array.from(selectedValues);
 
                     const matchingVariant = variantsData.find(variant => {
-                        const variantValues = new Set(variant.attribute_values);
+                        const variantValues = new Set((variant.attribute_values || []).map((value) => parseInt(value)));
                         return selectedValuesArray.length === variantValues.size && selectedValuesArray
                             .every(
                                 value => variantValues.has(value));
@@ -161,9 +176,12 @@
                         </div>`
 
                             $('.modal-price').replaceWith(html);
+                            $('.button-add-to-cart').prop('disabled', true).addClass('disabled');
 
                             return;
                         }
+
+                        $('.button-add-to-cart').prop('disabled', false).removeClass('disabled');
 
                         if (matchingVariant.special_price > 0) {
                             var html = `
@@ -183,6 +201,11 @@
                         }
 
                         $('.modal-price').replaceWith(html);
+                    } else {
+                        $('.button-add-to-cart').attr('data-variant', '');
+                        if (variantsData.length > 0) {
+                            $('.button-add-to-cart').prop('disabled', true).addClass('disabled');
+                        }
                     }
 
                 }
@@ -219,13 +242,17 @@
 
                     notyf.success(response.message);
                 },
-                error: function(xhr, status, error) {
+                error: function(xhr) {
                     let errors = xhr.responseJSON;
-                    console.log(errors);
-                    if (errors) {
-                        Object.values(errors).forEach(function(message) {
 
-                            notyf.error(message);
+                    if (xhr.status === 401 || errors?.message === 'Unauthenticated.') {
+                        notyf.error('Please login to continue.');
+                        window.location.href = "{{ route('login') }}";
+                    } else if (errors?.message) {
+                        notyf.error(errors.message);
+                    } else if (errors?.errors) {
+                        Object.values(errors.errors).forEach(function(message) {
+                            notyf.error(message[0]);
                         });
                     } else {
                         notyf.error("An error occurred. Please try again.");

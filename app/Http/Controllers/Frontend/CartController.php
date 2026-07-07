@@ -6,11 +6,13 @@ use App\Http\Controllers\Controller;
 use App\Models\Cart;
 use App\Models\Coupon;
 use App\Models\Product;
+use App\Models\ProductVariant;
 use App\Services\AlertService;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Session;
@@ -20,13 +22,9 @@ class CartController extends Controller
 {
     function index(): View
     {
-        $cartItems = new LengthAwarePaginator([], 0, 30);
+        $cartItems = $this->cartItems();
 
-        if (Schema::hasTable('carts')) {
-            $cartItems = Cart::with('product')->where('user_id', user()->id)->paginate(30);
-        }
-
-        if(Session::has('coupon') && Schema::hasTable('coupons')) {
+        if (Session::has('coupon') && Schema::hasTable('coupons')) {
             $coupon = Coupon::find(Session::get('coupon')['id']);
             $validateCoupon = $this->validateCoupon($coupon, $this->cartSubTotal());
             if(isset($validateCoupon['error'])) {
@@ -42,6 +40,10 @@ class CartController extends Controller
             return '';
         }
 
+        if (method_exists($product, 'loadMissing')) {
+            $product->loadMissing(['variants.attributeValues', 'images', 'tags']);
+        }
+
         $modal = view('components.frontend.product-quick-view-modal', compact('product'))->render();
 
         return $modal;
@@ -49,23 +51,22 @@ class CartController extends Controller
 
     function addToCart(Request $request)
     {
-        // check user login
-        if (!user()) {
-            throw ValidationException::withMessages([
-                'message' => 'Please login to add product to cart'
-            ]);
-        }
+        $request->validate([
+            'product_id' => ['required', 'integer', 'exists:products,id'],
+            'variant_id' => ['nullable', 'integer'],
+            'quantity' => ['nullable', 'integer', 'min:1'],
+        ]);
 
         $product = Product::findOrFail($request->product_id);
-        $variantId = $request->variant_id;
+        $quantity = max((int) ($request->quantity ?? 1), 1);
+        $variant = $this->resolveVariantForCart($product, $request->variant_id);
+        $variantId = $variant?->id;
         // $productInfo = $product->getVariantOrProductPriceAndStock($variantId);
         // dd($productInfo);
         // if(!$productInfo['in_stock']) {
         //     throw ValidationException::withMessages(["Product out of stock"]);
         // }
 
-
-        $quantity = $request->quantity;
         $showModal = $request->modal;
 
         if ($showModal === 'true') {
@@ -77,20 +78,17 @@ class CartController extends Controller
         }
 
         // check stock
-        $this->checkStock($product, $variantId, $quantity);
+        $this->checkStock($product, $variant, $quantity);
 
         // Duplicate check
-        if(Cart::where('user_id', user()->id)
-            ->where('product_id', $product->id)
-            ->when($variantId, fn($q) => $q->where('variant_id', $variantId))
-            ->exists()) {
+        if ($this->cartItemExists($product->id, $variantId)) {
                 return response()->json([
                     'status' => 'error',
                     'message' => 'Product already added to cart'
                 ], 409);
             }
 
-        $this->store($request, $product);
+        $this->store($request, $product, $variantId, $quantity);
 
         return response()->json([
             'status' => 'success',
@@ -100,29 +98,47 @@ class CartController extends Controller
         ]);
     }
 
-    function checkStock(Product $product, $variantId, $quantity)
+    function checkStock(Product $product, ?ProductVariant $variant, int $quantity)
     {
-        if($variantId && Schema::hasTable('product_variants')) {
-            $variant = $product->variants()->find($variantId);
-            if(!$variant || !$variant->in_stock || ($variant->manage_stock && $variant->qty < $quantity)) {
+        if($variant) {
+            if(!$variant->in_stock || !$variant->is_active || ($variant->manage_stock && $variant->qty < $quantity)) {
                 abort(422, 'Product out of stock');
             }
 
-            if(!$product->primaryVariant) {
-                if(!$product->in_stock || ($product->manage_stock && $product->qty < $quantity)) {
-                    abort(422, 'Product out of stock');
-                }
-            }
+            return;
+        }
+
+        $manageStock = $product->manage_stock === 'yes' || $product->manage_stock === 1 || $product->manage_stock === true;
+
+        if(!$product->in_stock || ($manageStock && (int) $product->qty < $quantity)) {
+            abort(422, 'Product out of stock');
         }
     }
 
-    function store(Request $request, Product $product)
+    function store(Request $request, Product $product, mixed $variantId, int $quantity)
     {
+        if (! user()) {
+            $cart = Session::get('guest_cart', []);
+            $key = $this->guestCartKey($product->id, $variantId);
+
+            $cart[$key] = [
+                'id' => $key,
+                'product_id' => $product->id,
+                'variant_id' => $variantId,
+                'quantity' => $quantity,
+                'name' => $product->name,
+            ];
+
+            Session::put('guest_cart', $cart);
+
+            return;
+        }
+
         $cart = new Cart();
         $cart->user_id = user()->id;
         $cart->product_id = $product->id;
-        $cart->variant_id = $request->variant_id;
-        $cart->quantity = $request->quantity;
+        $cart->variant_id = $variantId;
+        $cart->quantity = $quantity;
         $cart->name = $product->name;
         $cart->save();
     }
@@ -130,6 +146,36 @@ class CartController extends Controller
 
     function updateCart(Request $request)
     {
+        if (! user()) {
+            $cart = Session::get('guest_cart', []);
+            $cartItem = $this->guestCartItems()->firstWhere('id', $request->id);
+
+            if (! $cartItem || ! isset($cart[$request->id])) {
+                return response()->json(['message' => 'Cart item not found'], 404);
+            }
+
+            $product = $cartItem->product;
+            $productPriceAndQty = $product->getVariantOrProductPriceAndStock($cartItem->variant_id);
+
+            if (!$productPriceAndQty['in_stock']) {
+                return response()->json(['message' => 'Product out of stock'], 422);
+            }
+
+            if ($productPriceAndQty['qty'] > $request->qty || $productPriceAndQty['qty'] == 'Unlimited') {
+                $cart[$request->id]['quantity'] = max((int) $request->qty, 1);
+                Session::put('guest_cart', $cart);
+                $cartItems = $this->guestCartItems();
+                $cartHtml = view('components.frontend.cart-item', compact('cartItems'))->render();
+
+                return response()->json([
+                    'message' => 'Cart updated successfully',
+                    'html' => $cartHtml,
+                    'cart_sub_total' => $this->cartSubTotal(),
+                ], 200);
+            }
+
+            return response()->json(['message' => 'Product out of stock'], 422);
+        }
 
         $cartItem = Cart::findOrFail($request->id);
         $product = Product::findOrFail($cartItem->product_id);
@@ -164,7 +210,9 @@ class CartController extends Controller
     function cartSubTotal()
     {
         $cartTotal = 0;
-        $cartItems = Cart::with('product')->where('user_id', user()->id)->get();
+        $cartItems = user()
+            ? Cart::with('product')->where('user_id', user()->id)->get()
+            : $this->guestCartItems();
 
         foreach ($cartItems as $cartItem) {
             $cartTotal += $cartItem->product->getVariantOrProductPriceAndStock($cartItem->variant_id)['price'] * $cartItem->quantity;
@@ -176,6 +224,17 @@ class CartController extends Controller
 
     function destroy(string $id) : JsonResponse
     {
+        if (! user()) {
+            $cart = Session::get('guest_cart', []);
+            unset($cart[$id]);
+            Session::put('guest_cart', $cart);
+
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Cart item deleted successfully',
+            ], 200);
+        }
+
         $cartItem = Cart::findOrFail($id);
         $cartItem->delete();
         AlertService::updated('Cart item deleted successfully');
@@ -254,5 +313,86 @@ class CartController extends Controller
             'status' => 'success',
             'message' => 'Coupon code removed successfully',
         ], 200);
+    }
+
+    protected function cartItems(): LengthAwarePaginator
+    {
+        if (user() && Schema::hasTable('carts')) {
+            return Cart::with('product')->where('user_id', user()->id)->paginate(30);
+        }
+
+        $items = $this->guestCartItems();
+
+        return new LengthAwarePaginator($items, $items->count(), 30, 1, [
+            'path' => request()->url(),
+            'pageName' => 'page',
+        ]);
+    }
+
+    protected function guestCartItems(): Collection
+    {
+        $cart = collect(Session::get('guest_cart', []));
+        $productIds = $cart->pluck('product_id')->filter()->unique();
+        $products = Product::query()->whereIn('id', $productIds)->get()->keyBy('id');
+
+        return $cart->map(function ($item) use ($products) {
+            return (object) [
+                'id' => $item['id'],
+                'product_id' => $item['product_id'],
+                'variant_id' => $item['variant_id'] ?? null,
+                'quantity' => $item['quantity'] ?? 1,
+                'name' => $item['name'] ?? null,
+                'product' => $products->get($item['product_id']),
+            ];
+        })->filter(fn ($item) => $item->product)->values();
+    }
+
+    protected function cartItemExists(int $productId, mixed $variantId): bool
+    {
+        if (user()) {
+            return Cart::where('user_id', user()->id)
+                ->where('product_id', $productId)
+                ->when($variantId, fn ($q) => $q->where('variant_id', $variantId), fn ($q) => $q->whereNull('variant_id'))
+                ->exists();
+        }
+
+        return $this->guestCartItems()
+            ->contains(fn ($item) => (int) $item->product_id === $productId && (string) $item->variant_id === (string) $variantId);
+    }
+
+    protected function guestCartKey(int $productId, mixed $variantId): string
+    {
+        return $productId.'-'.($variantId ?: 'product');
+    }
+
+    protected function resolveVariantForCart(Product $product, mixed $variantId): ?ProductVariant
+    {
+        $activeVariants = $product->variants()
+            ->when(Schema::hasColumn('product_variants', 'is_active'), fn ($query) => $query->where('is_active', 1));
+
+        if (! $activeVariants->exists()) {
+            return null;
+        }
+
+        if ($variantId) {
+            $variant = (clone $activeVariants)->whereKey($variantId)->first();
+
+            if (! $variant) {
+                abort(422, 'Please select a valid product variant');
+            }
+
+            return $variant;
+        }
+
+        $variant = (clone $activeVariants)
+            ->when(Schema::hasColumn('product_variants', 'is_default'), fn ($query) => $query->orderByDesc('is_default'))
+            ->orderBy('id')
+            ->first();
+
+        if (! $variant) {
+            abort(422, 'Please select a product variant');
+        }
+
+        return $variant;
     }
 }

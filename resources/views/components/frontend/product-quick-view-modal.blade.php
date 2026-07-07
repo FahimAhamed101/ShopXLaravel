@@ -1,3 +1,7 @@
+@php
+    $availableVariants = $product->variants->where('is_active', 1)->values();
+@endphp
+
 <div class="modal-dialog">
     <div class="modal-content">
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
@@ -65,18 +69,19 @@
                         </div>
 
                         @foreach ($product->attributeWithValues as $attribute)
-                            <div class="attr-detail attr-size mb-20">
+                            <div class="attr-detail product-option-row mb-20">
                                 <strong class="mr-10">{{ $attribute->name }}: </strong>
-                                <ul class=" attribute-group color_filter list-filter size-filter font-small"
+                                <ul class="attribute-group product-option-list list-filter font-small {{ $attribute->type == 'color' ? 'product-color-options' : 'product-text-options size-filter' }}"
                                     data-attribute="{{ $attribute->id }}">
                                     @foreach ($attribute->values as $value)
                                         @if ($attribute->type == 'color')
                                             <li class="attribute-badge" data-value="{{ $value->id }}"><a
-                                                    href="#" style="background: {{ $value->color }};"></a>
+                                                    href="#" class="product-color-swatch" title="{{ $value->value }}"
+                                                    style="background: {{ $value->color ?: '#f5f5f5' }};"></a>
                                             </li>
                                         @else
                                             <li class="attribute-badge" data-value="{{ $value->id }}"><a
-                                                    href="#">{{ $value->value }}</a></li>
+                                                    href="#" class="product-text-option">{{ $value->value }}</a></li>
                                         @endif
                                     @endforeach
 
@@ -85,7 +90,7 @@
                         @endforeach
                         <input type="hidden" id="variants-data"
                             value="{{ json_encode(
-                                $product->variants->map(function ($variant) {
+                                $availableVariants->map(function ($variant) {
                                     return [
                                         'id' => $variant->id,
                                         'price' => $variant->price,
@@ -107,7 +112,7 @@
                                 <a href="#" class="qty-up"><i class="fi-rs-angle-small-up"></i></a>
                             </div>
                             <div class="product-extra-link2">
-                                <button type="submit" class="button button-add-to-cart add_to_cart" data-variant="" data-id="{{ $product->id }}" data-modal="false" ><i
+                                <button type="submit" class="button button-add-to-cart add_to_cart" data-variant="{{ $product->primaryVariant?->id ?? '' }}" data-id="{{ $product->id }}" data-modal="false" ><i
                                         class="fi-rs-shopping-cart" ></i>Add to cart</button>
 
                             </div>
@@ -129,7 +134,7 @@
                                     @endforeach
                                 </li>
                                 <li>Stock:<span class="in-stock text-brand ml-5"><span class="stock-qty">
-                                            @if ($product->manage_stock == 1)
+                                            @if ($product->manage_stock === 'yes' || $product->manage_stock == 1)
                                                 {{ $product->qty }}
                                             @else
                                                 Unlimited

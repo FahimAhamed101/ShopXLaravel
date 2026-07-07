@@ -19,7 +19,7 @@
     <div id="collapse-{{ $attribute->id }}" class="accordion-collapse collapse" data-bs-parent="#accordion-default"
         style="">
         <div class="accordion-body">
-            <form action="" class="attribute-form">
+            <div class="attribute-form">
                 @csrf
             <div class="row">
                 <div class="col-md-6">
@@ -82,7 +82,7 @@
                 <button class="btn btn-sm btn-primary add-row-btn" type="button">Add Row</button>
                 <button class="btn btn-sm btn-success save-btn" type="button">Save</button>
             </div>
-        </form>
+        </div>
         </div>
     </div>
 </div>

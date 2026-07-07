@@ -120,12 +120,17 @@ class Product extends Model
     public function getPrimaryVariantAttribute(): mixed
     {
         if ($this->relationLoaded('variants')) {
-            return $this->getRelation('variants')->firstWhere('is_default', 1)
-                ?: $this->getRelation('variants')->first();
+            $variants = $this->getRelation('variants')->filter(fn ($variant) => (bool) ($variant->is_active ?? true));
+
+            return $variants->firstWhere('is_default', 1) ?: $variants->first();
         }
 
         if ($this->productVariantsReady()) {
             $query = $this->variants();
+
+            if (Schema::hasColumn('product_variants', 'is_active')) {
+                $query->where('is_active', 1);
+            }
 
             if (Schema::hasColumn('product_variants', 'is_default')) {
                 $query->orderByDesc('is_default');
@@ -148,13 +153,15 @@ class Product extends Model
 
     public function getAttributeWithValuesAttribute(): Collection
     {
+        $attributes = collect();
+
         if (
             ! Schema::hasTable('product_attribute_values')
             || ! Schema::hasColumn('product_attribute_values', 'product_id')
             || ! Schema::hasColumn('product_attribute_values', 'attribute_id')
             || ! Schema::hasColumn('product_attribute_values', 'attribute_value_id')
         ) {
-            return collect();
+            return $this->buildAttributeGroupsFromVariants();
         }
 
         $pivotRows = DB::table('product_attribute_values')
@@ -163,7 +170,7 @@ class Product extends Model
             ->groupBy('attribute_id');
 
         if ($pivotRows->isEmpty()) {
-            return collect();
+            return $this->buildAttributeGroupsFromVariants();
         }
 
         $attributes = Attribute::query()
@@ -176,7 +183,7 @@ class Product extends Model
             ->get()
             ->keyBy('id');
 
-        return $pivotRows->map(function ($rows, $attributeId) use ($attributes, $attributeValues) {
+        $attributes = $pivotRows->map(function ($rows, $attributeId) use ($attributes, $attributeValues) {
             $attribute = $attributes->get($attributeId);
 
             if (! $attribute) {
@@ -193,6 +200,95 @@ class Product extends Model
 
             return $attribute;
         })->filter()->values();
+
+        if ($attributes->isEmpty()) {
+            return $this->buildAttributeGroupsFromVariants();
+        }
+
+        return $this->mergeAttributeGroupsByName($attributes);
+    }
+
+    protected function buildAttributeGroupsFromVariants(): Collection
+    {
+        if (! $this->productVariantsReady()) {
+            return collect();
+        }
+
+        if (
+            ! Schema::hasTable('product_variant_attribute_value')
+            || ! Schema::hasColumn('product_variant_attribute_value', 'product_variant_id')
+            || ! Schema::hasColumn('product_variant_attribute_value', 'attribute_id')
+            || ! Schema::hasColumn('product_variant_attribute_value', 'attribute_value_id')
+        ) {
+            return collect();
+        }
+
+        $variantIds = $this->variants()->pluck('id');
+
+        if ($variantIds->isEmpty()) {
+            return collect();
+        }
+
+        $pivotRows = DB::table('product_variant_attribute_value')
+            ->whereIn('product_variant_id', $variantIds)
+            ->get()
+            ->groupBy('attribute_id');
+
+        if ($pivotRows->isEmpty()) {
+            return collect();
+        }
+
+        $attributeIds = $pivotRows->keys();
+
+        $attributes = Attribute::query()
+            ->whereIn('id', $attributeIds)
+            ->get()
+            ->keyBy('id');
+
+        $attributeValues = AttributeValue::query()
+            ->whereIn('id', $pivotRows->flatten(1)->pluck('attribute_value_id')->unique())
+            ->get()
+            ->keyBy('id');
+
+        $attributes = $pivotRows->map(function ($rows, $attributeId) use ($attributes, $attributeValues) {
+            $attribute = $attributes->get($attributeId);
+
+            if (! $attribute) {
+                return null;
+            }
+
+            $values = $rows
+                ->pluck('attribute_value_id')
+                ->map(fn ($valueId) => $attributeValues->get($valueId))
+                ->filter()
+                ->unique('id')
+                ->values();
+
+            $attribute->setRelation('values', $values);
+
+            return $attribute;
+        })->filter()->values();
+
+        return $this->mergeAttributeGroupsByName($attributes);
+    }
+
+    protected function mergeAttributeGroupsByName(Collection $attributes): Collection
+    {
+        return $attributes
+            ->groupBy(fn ($attribute) => mb_strtolower(trim((string) $attribute->name)))
+            ->map(function (Collection $group) {
+                $primary = $group->sortBy('id')->first();
+                $values = $group
+                    ->flatMap(fn ($attribute) => $attribute->values ?? collect())
+                    ->filter()
+                    ->unique(fn ($value) => mb_strtolower(trim((string) $value->value)).'|'.($value->color ?? ''))
+                    ->values();
+
+                $primary->setRelation('values', $values);
+
+                return $primary;
+            })
+            ->values();
     }
 
     public function getTagsAttribute(): Collection
@@ -243,6 +339,33 @@ class Product extends Model
 
     public function getVariantOrProductPriceAndStock($variantId = null): array
     {
+        if ($variantId && $this->productVariantsReady()) {
+            $variant = $this->variants()->with('attributeValues')->find($variantId);
+
+            if ($variant) {
+                $specialPrice = (float) ($variant->special_price ?? 0);
+                $price = $specialPrice > 0 ? (float) $variant->price : (float) ($variant->price ?? 0);
+                $oldPrice = $specialPrice > 0 ? (float) ($variant->price ?? 0) : 0;
+                $qty = $this->stockIsManaged($variant->manage_stock ?? false)
+                    ? (int) ($variant->qty ?? 0)
+                    : 'Unlimited';
+                $inStock = array_key_exists('in_stock', $variant->getAttributes())
+                    ? (bool) $variant->in_stock
+                    : ($qty === 'Unlimited' ? true : $qty > 0);
+
+                return [
+                    'price' => $price,
+                    'old_price' => $oldPrice,
+                    'qty' => $qty,
+                    'in_stock' => $inStock,
+                ];
+            }
+        }
+
+        if (! $variantId && $this->primaryVariant) {
+            return $this->getVariantOrProductPriceAndStock($this->primaryVariant->id);
+        }
+
         return $this->getEffectivePriceAndStock();
     }
 
@@ -307,7 +430,7 @@ class Product extends Model
 
     protected function resolveQuantity(): int|string
     {
-        $manageStock = (bool) ($this->manage_stock ?? false);
+        $manageStock = $this->stockIsManaged($this->manage_stock ?? false);
 
         if (! $manageStock) {
             return 'Unlimited';
@@ -327,5 +450,10 @@ class Product extends Model
         }
 
         return $qty > 0;
+    }
+
+    protected function stockIsManaged(mixed $value): bool
+    {
+        return in_array($value, [1, true, '1', 'yes', 'true', 'on'], true);
     }
 }
