@@ -42,7 +42,7 @@
                                     @endphp
                                     <li>
                                         <a href="{{ route('products.show', $cartItem->product->slug) }}" class="img">
-                                            <img src="{{ asset($cartItem->product?->primaryImage?->path) }}" alt="product"
+                                            <img src="{{ imageUrl($cartItem->product?->primaryImage?->path) }}" alt="product"
                                                 class="img-fluid w-100">
                                         </a>
                                         <div class="text cart-item-title">

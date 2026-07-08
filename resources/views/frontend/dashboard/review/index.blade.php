@@ -26,7 +26,7 @@
                             <td>
                                 <div class="d-flex gap-2">
 
-                                <img style="width: 50px; height: 50px; object-fit: cover" src="{{ asset($review->product->primaryImage->path) }}" alt="">
+                                <img style="width: 50px; height: 50px; object-fit: cover" src="{{ imageUrl($review->product?->primaryImage?->path) }}" alt="">
                                 <a href="{{ route('products.show', ['slug' => $review->product->slug]) }}"><p>{{ truncate($review->product->name, 50) }}</p></a>
                                 </div>
                             </td>

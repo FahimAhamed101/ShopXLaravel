@@ -1,8 +1,8 @@
 <section class="home-slider position-relative mb-30">
     <div class="container">
-        <div class="row">
-            <div class="col-lg-2 d-none d-lg-block">
-                <div class="categories-dropdown-wrap style-2 font-heading mt-30">
+        <div class="shopx-hero-grid">
+            <aside class="shopx-hero-categories d-none d-lg-block">
+                <div class="categories-dropdown-wrap style-2 font-heading">
                     <div class="d-flex categori-dropdown-inner">
                         <ul>
                             {{-- @dd(getNestedCategories()) --}}
@@ -11,7 +11,7 @@
                                 @if ($loop->iteration <= 11)
                                     <li>
                                         <a href="{{ route('products.index', ['category' => $category->slug]) }}">
-                                            <img src="{{ asset($category->icon) }}" alt="" />
+                                            <img src="{{ imageUrl($category->icon, 'assets/frontend/dist/imgs/theme/icons/category-1.svg') }}" alt="" />
                                             <span>{{ $category->name }}</span>
                                         </a>
                                         @if (count($category->children_nested) > 0)
@@ -45,49 +45,59 @@
                         <i class="fa-solid fa-arrow-right"></i>
                     </a>
                 </div>
-            </div>
-            <div class="col-lg-8 col-xl-9 col-xxl-7">
-                <div class="home-slide-cover mt-30">
+            </aside>
+            <div class="shopx-hero-slider">
+                <div class="home-slide-cover">
                     <div class="hero-slider-1 style-5 dot-style-1 dot-style-1-position-2">
-                        @foreach ($sliders as $slider)
+                        @forelse ($sliders as $slider)
                             <div class="single-hero-slider single-animation-wrap"
-                                style="background-image: url({{ asset($slider->image) }})">
+                                style="background-image: url({{ imageUrl($slider->image, 'assets/frontend/dist/imgs/slider/slider-1.png') }})">
                                 <div class="slider-content">
-                                    <h1 class="display-2 mb-15">{{ $slider->title }}</h1>
-                                    <p>{{ $slider->sub_title }}</p>
-                                    <a href="{{ $slider->btn_url }}" class="btn">Shop Now <i
+                                    <h1 class="display-2 mb-15">{{ $slider->title ?: 'Smartwatch with Heart Rate Monitor' }}</h1>
+                                    <p>{{ $slider->sub_title ?: 'Track your fitness and monitor your health with this stylish smartwatch.' }}</p>
+                                    <a href="{{ $slider->btn_url ?: route('products.index') }}" class="btn">Shop Now <i
                                             class="fi-rs-arrow-small-right"></i></a>
                                 </div>
                             </div>
-                        @endforeach
+                        @empty
+                            <div class="single-hero-slider single-animation-wrap"
+                                style="background-image: url({{ imageUrl(null, 'assets/frontend/dist/imgs/slider/slider-1.png') }})">
+                                <div class="slider-content">
+                                    <h1 class="display-2 mb-15">Smartwatch with Heart Rate Monitor</h1>
+                                    <p>Track your fitness and monitor your health with this stylish smartwatch.</p>
+                                    <a href="{{ route('products.index') }}" class="btn">Shop Now <i
+                                            class="fi-rs-arrow-small-right"></i></a>
+                                </div>
+                            </div>
+                        @endforelse
                     </div>
                     <div class="slider-arrow hero-slider-1-arrow"></div>
                 </div>
             </div>
-            <div class="col-lg-4 col-xl-3 col-xxl-3">
-                <div class="row">
-                    <div class="col-12 col-md-6 col-lg-12">
-                        <div class="banner-img style-4 mt-30">
-                            <img src="{{ asset($heroBanner?->banner_one) }}" alt="" />
+            <aside class="shopx-hero-banners d-none d-xl-grid">
+                <div>
+                    <div>
+                        <div class="banner-img style-4">
+                            <img src="{{ imageUrl($heroBanner?->banner_one, 'assets/frontend/dist/imgs/banner/banner-1.png') }}" alt="" />
                             <div class="banner-text">
-                                <h4 class="mb-30">{{ $heroBanner?->title_one }}</h4>
-                                <a href="{{ $heroBanner?->btn_url_one }}" class="btn btn-xs mb-50">Shop Now <i
+                                <h4 class="mb-30">{{ $heroBanner?->title_one ?: 'Hi-Res Audio Headphones' }}</h4>
+                                <a href="{{ $heroBanner?->btn_url_one ?: route('products.index') }}" class="btn btn-xs mb-50">Shop Now <i
                                         class="fi-rs-arrow-small-right"></i></a>
                             </div>
                         </div>
                     </div>
-                    <div class="col-12 col-md-6 col-lg-12">
-                        <div class="banner-img style-5 mt-5 mt-md-30">
-                            <img src="{{ asset($heroBanner?->banner_two) }}" alt="" />
+                    <div>
+                        <div class="banner-img style-5">
+                            <img src="{{ imageUrl($heroBanner?->banner_two, 'assets/frontend/dist/imgs/banner/banner-2.png') }}" alt="" />
                             <div class="banner-text">
-                                <h5 class="mb-20">{{ $heroBanner?->title_two }}</h5>
-                                <a href="{{ $heroBanner?->btn_url_two }}" class="btn btn-xs">Shop Now <i
+                                <h5 class="mb-20">{{ $heroBanner?->title_two ?: 'Mens Leather Waterproof Boots' }}</h5>
+                                <a href="{{ $heroBanner?->btn_url_two ?: route('products.index') }}" class="btn btn-xs">Shop Now <i
                                         class="fi-rs-arrow-small-right"></i></a>
                             </div>
                         </div>
                     </div>
                 </div>
-            </div>
+            </aside>
         </div>
     </div>
 </section>

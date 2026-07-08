@@ -373,7 +373,10 @@ class Product extends Model
     {
         return Schema::hasTable('product_images')
             && Schema::hasColumn('product_images', 'product_id')
-            && Schema::hasColumn('product_images', 'path');
+            && (
+                Schema::hasColumn('product_images', 'path')
+                || Schema::hasColumn('product_images', 'image')
+            );
     }
 
     protected function productVariantsReady(): bool

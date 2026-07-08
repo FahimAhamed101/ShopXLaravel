@@ -20,14 +20,14 @@
                                 <div class="product-image-slider">
                                     @foreach ($product->images as $image)
                                         <figure class="border-radius-10">
-                                            <img src="{{ asset($image->path) }}" alt=" product image" />
+                                            <img src="{{ imageUrl($image->path) }}" alt=" product image" />
                                         </figure>
                                     @endforeach
                                 </div>
                                 <!-- THUMBNAILS -->
                                 <div class="slider-nav-thumbnails">
                                     @foreach ($product->images as $image)
-                                        <div><img src="{{ asset($image->path) }}" alt="product image" /></div>
+                                        <div><img src="{{ imageUrl($image->path) }}" alt="product image" /></div>
                                     @endforeach
 
                                 </div>
@@ -189,7 +189,7 @@
                                 <div class="tab-pane fade" id="Vendor-info">
                                     @if ($store)
                                         <div class="vendor-logo d-flex mb-30 align-items-center">
-                                            <img src="{{ asset($store->logo) }}" alt="" />
+                                            <img src="{{ imageUrl($store->logo, 'defaults/avatar.png') }}" alt="" />
                                             <div class="vendor-name ml-15">
                                                 <h6>
                                                     <a href="vendor-details-2.html">{{ $store->name }}</a>
@@ -237,7 +237,7 @@
                                                     <div class="single-comment justify-content-between d-flex mb-30">
                                                         <div class="user justify-content-between d-flex">
                                                             <div class="thumb text-center">
-                                                                <img src="{{ asset($review->user->avatar) }}" alt="" />
+                                                                <img src="{{ imageUrl($review->user?->avatar, 'defaults/avatar.png') }}" alt="" />
                                                                 <a href="#"
                                                                     class="font-heading text-brand">{{ $review->user->name }}</a>
                                                             </div>

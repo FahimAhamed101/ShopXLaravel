@@ -61,7 +61,7 @@
                             <div class="vendor-img-action-wrap">
                                 <div class="vendor-img">
                                     <a href="{{ route('vendors.show', $vendor->id) }}">
-                                        <img class="default-img" src="{{ asset($vendor?->store?->logo) }}" alt="">
+                                        <img class="default-img" src="{{ imageUrl($vendor?->store?->logo, 'defaults/avatar.png') }}" alt="">
                                     </a>
                                 </div>
                                 {{-- <div class=" product-badges product-badges-position product-badges-mrg">

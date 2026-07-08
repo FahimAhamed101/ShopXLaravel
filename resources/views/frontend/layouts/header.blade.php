@@ -179,7 +179,7 @@
                                         @if($loop->iteration <= 11)
                                         <li>
                                             <a href="{{ route('products.index', ['category' => $category->slug]) }}">
-                                                <img src="{{ asset($category->icon) }}" alt="" />
+                                                <img src="{{ imageUrl($category->icon, 'assets/frontend/dist/imgs/theme/icons/category-1.svg') }}" alt="" />
                                                 <span>{{ $category->name }}</span>
                                             </a>
                                             @if (count($category->children_nested) > 0)
@@ -349,7 +349,7 @@
             <div class="mobile-social-icon mb-50">
                 <h6 class="mb-15">Follow Us</h6>
                 @foreach ($socialLinks as $socialLink)
-                    <a href="{{ $socialLink->url }}"><img src="{{ asset($socialLink->icon) }}"
+                    <a href="{{ $socialLink->url }}"><img src="{{ imageUrl($socialLink->icon, 'assets/frontend/dist/imgs/theme/icons/icon-facebook-white.svg') }}"
                             alt="" /></a>
                 @endforeach
             </div>

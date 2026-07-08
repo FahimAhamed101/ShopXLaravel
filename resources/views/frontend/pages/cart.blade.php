@@ -35,7 +35,7 @@
                             @forelse($cartItems as $cartItem)
                                 <tr class="">
                                     <td class="image product-thumbnail"><img
-                                            src="{{ asset($cartItem->product?->primaryImage?->path) }}" alt="#"></td>
+                                            src="{{ imageUrl($cartItem->product?->primaryImage?->path) }}" alt="#"></td>
                                     <td class="product-des product-name">
                                         <h6 class="mb-5"><a class="product-name mb-10 text-heading"
                                                 href="shop-product-right.html">{{ $cartItem->product?->name }}</a></h6>

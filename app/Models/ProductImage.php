@@ -8,8 +8,13 @@ class ProductImage extends Model
 {
     protected $guarded = [];
 
-    public function getPathAttribute($value): string
+    public function getPathAttribute($value): ?string
     {
-        return $value ?: (string) ($this->attributes['image'] ?? '/assets/frontend/dist/imgs/shop/product-1-1.jpg');
+        return $value ?: ($this->attributes['image'] ?? null);
+    }
+
+    public function getUrlAttribute(): string
+    {
+        return imageUrl($this->path);
     }
 }

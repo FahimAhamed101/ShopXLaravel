@@ -14,7 +14,7 @@
                         <div class="product-image-slider">
                             @foreach ($product->images as $image)
                                 <figure class="border-radius-10">
-                                    <img src="{{ asset($image->path) }}" alt=" product image" />
+                                    <img src="{{ imageUrl($image->path) }}" alt=" product image" />
                                 </figure>
                             @endforeach
 
@@ -22,7 +22,7 @@
                         <!-- THUMBNAILS -->
                         <div class="slider-nav-thumbnails">
                             @foreach ($product->images as $image)
-                                <div><img src="{{ asset($image->path) }}" alt="product image" /></div>
+                                <div><img src="{{ imageUrl($image->path) }}" alt="product image" /></div>
                             @endforeach
                         </div>
                     </div>

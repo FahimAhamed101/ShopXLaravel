@@ -1,7 +1,7 @@
 @forelse($cartItems as $cartItem)
     <tr>
         <td class="image product-thumbnail"><img
-                src="{{ asset($cartItem->product?->primaryImage?->path) }}" alt="#"></td>
+                src="{{ imageUrl($cartItem->product?->primaryImage?->path) }}" alt="#"></td>
         <td class="product-des product-name">
             <h6 class="mb-5"><a class="product-name mb-10 text-heading"
                     href="{{ $cartItem->product?->slug ? route('products.show', $cartItem->product->slug) : '#' }}">{{ $cartItem->product?->name }}</a></h6>

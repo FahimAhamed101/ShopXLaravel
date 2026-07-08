@@ -17,7 +17,7 @@
                 <div class="product-img product-img-zoom">
                     <a href="{{ $productUrl }}">
                         @foreach ($product->images as $key => $image)
-                            <img class="{{ $key == 0 ? 'default-img' : 'hover-img' }}" src="{{ asset($image->path) }}"
+                            <img class="{{ $key == 0 ? 'default-img' : 'hover-img' }}" src="{{ imageUrl($image->path) }}"
                                 alt="" />
                         @endforeach
                         {{-- <img class="hover-img" src="assets/imgs/shop/product-1-2.jpg" alt="" /> --}}

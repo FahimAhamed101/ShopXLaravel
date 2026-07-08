@@ -67,6 +67,30 @@ if (!function_exists('tableHasColumns')) {
     }
 }
 
+if (!function_exists('imageUrl')) {
+    function imageUrl(?string $path, string $fallback = 'assets/frontend/dist/imgs/shop/product-1-1.jpg'): string
+    {
+        $path = trim((string) $path);
+
+        if ($path === '') {
+            $path = $fallback;
+        }
+
+        if (str_starts_with($path, 'http://') || str_starts_with($path, 'https://') || str_starts_with($path, 'data:')) {
+            return $path;
+        }
+
+        $path = str_replace('\\', '/', $path);
+        $path = ltrim($path, '/');
+
+        if (str_starts_with($path, 'assets/imgs/')) {
+            $path = 'assets/frontend/dist/'.substr($path, strlen('assets/'));
+        }
+
+        return asset($path);
+    }
+}
+
 
 /** get cart total */
 if (!function_exists('cartCount')) {

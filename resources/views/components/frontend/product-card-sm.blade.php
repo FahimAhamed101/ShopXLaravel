@@ -22,7 +22,7 @@
 <article class="row align-items-center hover-up">
     <figure class="col-sm-4 mb-0">
         <a href="{{ $productUrl }}">
-            <img src="{{ $imagePath ? asset($imagePath) : asset('assets/frontend/dist/imgs/shop/product-1-1.jpg') }}" alt="{{ $product?->name }}" />
+            <img src="{{ imageUrl($imagePath) }}" alt="{{ $product?->name }}" />
         </a>
     </figure>
     <div class="col-sm-8 mb-0">

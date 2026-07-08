@@ -17,6 +17,15 @@ class ProductPageController extends Controller
 {
     function index(Request $request): View
     {
+        $brandIds = collect($request->input('brands', []))->filter()->map(fn ($id) => (int) $id)->values()->all();
+        $tagIds = collect($request->input('tags', []))->filter()->map(fn ($id) => (int) $id)->values()->all();
+        $from = $request->filled('from') ? max(0, (float) $request->from) : null;
+        $to = $request->filled('to') ? max(0, (float) $request->to) : null;
+
+        if ($from !== null && $to !== null && $from > $to) {
+            [$from, $to] = [$to, $from];
+        }
+
         $productQuery = Product::query();
 
         if ($this->productImagesReady()) {
@@ -42,44 +51,32 @@ class ProductPageController extends Controller
             }
         });
 
-        $productQuery->when(
-            $request->filled('from') && $request->filled('to') && $this->variantFeaturesReady() && tableHasColumns('products', ['price', 'special_price']),
-            function ($query) use ($request) {
-                $from = $request->from;
-                $to = $request->to;
+        $productQuery->when($from !== null && $to !== null && tableHasColumns('products', ['price']), function ($query) use ($from, $to) {
+            $productPriceExpression = $this->productPriceExpression();
 
-                $query->where(function ($q) use ($from, $to) {
-                    $q->whereHas('variants', function ($v) use ($from, $to) {
-                        $v->where(function ($v2) use ($from, $to) {
-                            $v2->where(function ($v3) use ($from, $to) {
-                                $v3->whereNotNull('special_price')
-                                    ->whereBetween('special_price', [$from, $to]);
-                            })->orWhere(function ($v3) use ($from, $to) {
-                                $v3->whereNull('special_price')
-                                    ->whereBetween('price', [$from, $to]);
-                            });
-                        });
-                    })->orWhere(function ($q2) use ($from, $to) {
-                        $q2->whereDoesntHave('variants')
-                            ->where(function ($q3) use ($from, $to) {
-                                $q3->whereNotNull('special_price')
-                                    ->whereBetween('special_price', [$from, $to]);
-                            })->orWhere(function ($q3) use ($from, $to) {
-                                $q3->whereNull('special_price')
-                                    ->whereBetween('price', [$from, $to]);
-                            });
+            $query->where(function ($q) use ($from, $to, $productPriceExpression) {
+                if ($this->variantFeaturesReady()) {
+                    $q->whereHas('variants', function ($variantQuery) use ($from, $to) {
+                        $variantQuery->whereRaw($this->variantPriceExpression().' between ? and ?', [$from, $to]);
+                    })->orWhere(function ($productOnlyQuery) use ($from, $to, $productPriceExpression) {
+                        $productOnlyQuery->whereDoesntHave('variants')
+                            ->whereRaw($productPriceExpression.' between ? and ?', [$from, $to]);
                     });
-                });
-            }
-        );
 
-        $productQuery->when($request->filled('brands') && tableHasColumns('products', ['brand_id']), function ($query) use ($request) {
-            $query->whereIn('brand_id', $request->brands);
+                    return;
+                }
+
+                $q->whereRaw($productPriceExpression.' between ? and ?', [$from, $to]);
+            });
         });
 
-        $productQuery->when($request->filled('tags') && $this->tagFeaturesReady(), function ($query) use ($request) {
-            $query->whereHas('tags', function ($query) use ($request) {
-                $query->whereIn('tags.id', $request->tags);
+        $productQuery->when($brandIds && tableHasColumns('products', ['brand_id']), function ($query) use ($brandIds) {
+            $query->whereIn('brand_id', $brandIds);
+        });
+
+        $productQuery->when($tagIds && $this->tagFeaturesReady(), function ($query) use ($tagIds) {
+            $query->whereHas('tags', function ($query) use ($tagIds) {
+                $query->whereIn('tags.id', $tagIds);
             });
         });
 
@@ -98,8 +95,6 @@ class ProductPageController extends Controller
             });
         });
 
-        $productQuery->orderBy('id', 'desc');
-
         if (tableHasColumns('products', ['status'])) {
             $productQuery->where('status', 'active');
         }
@@ -108,9 +103,16 @@ class ProductPageController extends Controller
             $productQuery->where('approved_status', 'approved');
         }
 
-        $products = $productQuery->paginate(20);
-
         $allMatingProductIds = (clone $productQuery)->pluck('id');
+
+        match ($request->input('sort')) {
+            'price_low' => $productQuery->orderByRaw($this->productPriceExpression().' asc'),
+            'price_high' => $productQuery->orderByRaw($this->productPriceExpression().' desc'),
+            'oldest' => $productQuery->orderBy('id', 'asc'),
+            default => $productQuery->orderBy('id', 'desc'),
+        };
+
+        $products = $productQuery->paginate(20)->withQueryString();
 
         $brands = $this->brandFeaturesReady()
             ? Brand::whereHas('products', function ($query) use ($allMatingProductIds) {
@@ -128,7 +130,12 @@ class ProductPageController extends Controller
             ? Category::getNested()
             : collect();
 
-        return view('frontend.pages.product', compact('products', 'categories', 'brands', 'tags'));
+        $priceMin = 0;
+        $priceMax = tableHasColumns('products', ['price'])
+            ? max(1000, (int) ceil((float) Product::query()->selectRaw('MAX('.$this->productPriceExpression().') as max_price')->value('max_price')))
+            : 1000;
+
+        return view('frontend.pages.product', compact('products', 'categories', 'brands', 'tags', 'from', 'to', 'priceMin', 'priceMax'));
     }
 
     function show(string $slug): View
@@ -209,7 +216,12 @@ class ProductPageController extends Controller
 
     protected function productImagesReady(): bool
     {
-        return tableHasColumns('product_images', ['product_id', 'path']);
+        return Schema::hasTable('product_images')
+            && Schema::hasColumn('product_images', 'product_id')
+            && (
+                Schema::hasColumn('product_images', 'path')
+                || Schema::hasColumn('product_images', 'image')
+            );
     }
 
     protected function categoryFeaturesReady(): bool
@@ -236,6 +248,36 @@ class ProductPageController extends Controller
     {
         return class_exists(\App\Models\ProductVariant::class)
             && tableHasColumns('product_variants', ['product_id', 'price']);
+    }
+
+    protected function productPriceExpression(): string
+    {
+        $columns = [];
+
+        if (Schema::hasColumn('products', 'special_price')) {
+            $columns[] = 'NULLIF(special_price, 0)';
+        }
+
+        if (Schema::hasColumn('products', 'offer_price')) {
+            $columns[] = 'NULLIF(offer_price, 0)';
+        }
+
+        $columns[] = 'price';
+
+        return 'COALESCE('.implode(', ', $columns).')';
+    }
+
+    protected function variantPriceExpression(): string
+    {
+        $columns = [];
+
+        if (Schema::hasColumn('product_variants', 'special_price')) {
+            $columns[] = 'NULLIF(special_price, 0)';
+        }
+
+        $columns[] = 'price';
+
+        return 'COALESCE('.implode(', ', $columns).')';
     }
 
     protected function emptyReviewPaginator(): LengthAwarePaginator

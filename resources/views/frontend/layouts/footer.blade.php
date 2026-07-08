@@ -45,7 +45,7 @@
                         <div class="banner-left-icon d-flex align-items-center wow animate__animated animate__fadeInUp"
                             data-wow-delay="0">
                             <div class="banner-icon">
-                                <img src="{{ asset($feature->icon) }}" alt="" />
+                                <img src="{{ imageUrl($feature->icon, 'assets/frontend/dist/imgs/theme/icons/icon-1.png') }}" alt="" />
                             </div>
                             <div class="banner-text">
                                 <h3 class="icon-box-title">{{ $feature->title }}</h3>
@@ -144,7 +144,7 @@
                 <div class="mobile-social-icon">
                     <h6>Follow Us</h6>
                     @foreach ($socialLinks as $link)
-                        <a href="{{ $link->url }}"><img src="{{ asset($link->icon) }}" alt="" /></a>
+                        <a href="{{ $link->url }}"><img src="{{ imageUrl($link->icon, 'assets/frontend/dist/imgs/theme/icons/social-fb.svg') }}" alt="" /></a>
                     @endforeach
 
                 </div>

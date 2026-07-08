@@ -2,10 +2,10 @@
 
 @section('contents')
     <div class="container mb-30" style="transform: none;">
-        <div class="archive-header-3 mt-70 mb-70" style="background-image: url({{ asset($store->banner) }})">
+        <div class="archive-header-3 mt-70 mb-70" style="background-image: url({{ imageUrl($store->banner, 'assets/frontend/dist/imgs/vendor/vendor-header-bg.png') }})">
             <div class="archive-header-3-inner">
                 <div class="vendor-logo mr-50">
-                    <img src="{{ asset($store->logo) }}" alt="">
+                    <img src="{{ imageUrl($store->logo, 'defaults/avatar.png') }}" alt="">
                 </div>
                 <div class="vendor-content">
                     <div class="product-category">

@@ -13,7 +13,7 @@
                     <div class="card-2 bg-9 wow animate__animated animate__fadeInUp" data-wow-delay=".1s">
                         <figure class="img-hover-scale overflow-hidden">
                             <a href="{{ route('products.index', ['category' => $category->slug]) }}"><img
-                                    src="{{ asset($category->image) }}" alt="" /></a>
+                                    src="{{ imageUrl($category->image, 'assets/frontend/dist/imgs/shop/cat-1.png') }}" alt="" /></a>
                         </figure>
                         <h6><a
                                 href="{{ route('products.index', ['category' => $category->slug]) }}">{{ $category->name }}</a>

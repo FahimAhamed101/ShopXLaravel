@@ -3,28 +3,32 @@
     <div class="sidebar_filter d-lg-none">filter</div>
 
     <div class="sidebar_wraper">
-        <div class="sidebar-widget widget-category-2 mb-30">
-            <h5 class="section-title style-1 mb-30">Category</h5>
+        <div class="sidebar-widget widget-category-2 shopx-category-widget mb-30">
+            <h5 class="section-title style-1 mb-20">Categories</h5>
 
             <ul class="main_category">
                 {{-- @dd($categories) --}}
                 @foreach ($categories as $category)
-                    <li class="{{ request()->category == $category->slug ? 'active' : '' }}">
-                        <a href="{{ route('products.index', ['category' => $category->slug]) }}">{{ $category->name }}
+                    @php
+                        $parentActive = request()->category == $category->slug
+                            || $category->children_nested->contains(fn ($child) => request()->category == $child->slug || $child->children_nested->contains('slug', request()->category));
+                    @endphp
+                    <li class="{{ $parentActive ? 'active open' : '' }}">
+                        <a href="{{ route('products.index', array_merge(request()->except(['page', 'category']), ['category' => $category->slug])) }}">{{ $category->name }}
                         </a>
                         @if ($category->children_nested->count() > 0)
                             <ul class="sub_category">
                                 @foreach ($category->children_nested as $child)
                                     <li class="{{ request()->category == $child->slug ? 'active' : '' }}">
                                         <a
-                                            href="{{ route('products.index', ['category' => $child->slug]) }}">{{ $child->name }}</a>
+                                            href="{{ route('products.index', array_merge(request()->except(['page', 'category']), ['category' => $child->slug])) }}">{{ $child->name }}</a>
                                         @if ($child->children_nested->count() > 0)
                                             <ul class="child_category">
                                                 @foreach ($child->children_nested as $subchild)
                                                     <li
                                                         class="{{ request()->category == $subchild->slug ? 'active' : '' }}">
                                                         <a
-                                                            href="{{ route('products.index', ['category' => $subchild->slug]) }}">{{ $subchild->name }}</a>
+                                                            href="{{ route('products.index', array_merge(request()->except(['page', 'category']), ['category' => $subchild->slug])) }}">{{ $subchild->name }}</a>
                                                     </li>
                                                 @endforeach
                                             </ul>
@@ -38,12 +42,19 @@
             </ul>
         </div>
         <!-- Fillter By Price -->
-        <div class="sidebar-widget price_range range mb-30">
-            <h5 class="section-title style-1 mb-30">Fill by price</h5>
-            <form action="{{ url()->current() }}" method="get">
-                @if (request('category'))
-                    <input type="hidden" name="category" value="{{ request('category') }}">
+        <div class="sidebar-widget price_range range shopx-filter-widget mb-30">
+            <div class="shopx-filter-heading">
+                <h5 class="section-title style-1 mb-0">Price filter</h5>
+                @if (request()->except('page'))
+                    <a href="{{ route('products.index') }}">Reset</a>
                 @endif
+            </div>
+            <form action="{{ route('products.index') }}" method="get" class="shopx-filter-form">
+                @foreach (request()->only(['category', 'search', 'sort']) as $key => $value)
+                    @if (filled($value))
+                        <input type="hidden" name="{{ $key }}" value="{{ $value }}">
+                    @endif
+                @endforeach
                 <div class="price-filter">
                     <div class="price-filter-inner">
                         <div id="slider-range" class="mb-20"></div>
@@ -56,49 +67,63 @@
                             </div>
                         </div>
                     </div>
-                    <input type="hidden" name="from" id="price_from" value="">
-                    <input type="hidden" name="to" id="price_to" value="">
+                    <input type="hidden" name="from" id="price_from" value="{{ (int) ($from ?? $priceMin) }}">
+                    <input type="hidden" name="to" id="price_to" value="{{ (int) ($to ?? $priceMax) }}">
                 </div>
-                <div class="list-group">
-                    <div class="list-group-item mb-10 mt-10">
-                        <label class="fw-900">Brands</label>
-                        <div class="custome-checkbox">
-                            @foreach ($brands as $brand)
-                                <input @checked(in_array($brand->id, request('brands') ?? [])) class="form-check-input" type="checkbox"
-                                    name="brands[]" id="brand-{{ $brand->id }}"
-                                    value="{{ $brand->id }}" />
-                                <label class="form-check-label"
-                                    for="brand-{{ $brand->id }}"><span>{{ $brand->name }}
-                                        ({{ $brand->products_count }})
-                                    </span></label>
-                                <br />
-                            @endforeach
-                        </div>
-                        <label class="fw-900 mt-15">Tags</label>
-                        <div class="custome-checkbox">
-                            @foreach ($tags as $tag)
-                                <input @checked(in_array($tag->id, request('tags') ?? [])) class="form-check-input" type="checkbox"
-                                    name="tags[]" id="tag-{{ $tag->id }}"
-                                    value="{{ $tag->id }}" />
-                                <label class="form-check-label"
-                                    for="tag-{{ $tag->id }}"><span>{{ $tag->name }}
-                                        ({{ $tag->products_count }})
-                                    </span></label>
-                                <br />
-                            @endforeach
+                @if ($brands->isNotEmpty() || $tags->isNotEmpty())
+                    <div class="list-group">
+                        <div class="list-group-item mb-10 mt-10">
+                            @if ($brands->isNotEmpty())
+                                <label class="fw-900">Brands</label>
+                                <div class="custome-checkbox">
+                                    @foreach ($brands as $brand)
+                                        @php
+                                            $selectedBrands = collect(request('brands', []))->map(fn ($id) => (int) $id)->all();
+                                        @endphp
+                                        <div class="shopx-check-row">
+                                            <input @checked(in_array($brand->id, $selectedBrands)) class="form-check-input" type="checkbox"
+                                                name="brands[]" id="brand-{{ $brand->id }}"
+                                                value="{{ $brand->id }}" />
+                                            <label class="form-check-label"
+                                                for="brand-{{ $brand->id }}"><span>{{ $brand->name }}
+                                                    ({{ $brand->products_count }})
+                                                </span></label>
+                                        </div>
+                                    @endforeach
+                                </div>
+                            @endif
 
+                            @if ($tags->isNotEmpty())
+                                <label class="fw-900 mt-15">Tags</label>
+                                <div class="custome-checkbox">
+                                    @foreach ($tags as $tag)
+                                        @php
+                                            $selectedTags = collect(request('tags', []))->map(fn ($id) => (int) $id)->all();
+                                        @endphp
+                                        <div class="shopx-check-row">
+                                            <input @checked(in_array($tag->id, $selectedTags)) class="form-check-input" type="checkbox"
+                                                name="tags[]" id="tag-{{ $tag->id }}"
+                                                value="{{ $tag->id }}" />
+                                            <label class="form-check-label"
+                                                for="tag-{{ $tag->id }}"><span>{{ $tag->name }}
+                                                    ({{ $tag->products_count }})
+                                                </span></label>
+                                        </div>
+                                    @endforeach
+                                </div>
+                            @endif
                         </div>
                     </div>
-                </div>
-                <button type="submit" href="shop-grid-right.html" class="btn btn-sm btn-default"><i
+                @endif
+                <button type="submit" class="btn btn-sm btn-default"><i
                         class="fi-rs-filter mr-5"></i>
-                    Filter</button>
+                    Apply filter</button>
             </form>
         </div>
 
         <a href="{{ data_get($ads, 'side_banner_three.0.url', '') }}"
             class="banner-img wow fadeIn d-block">
-            <img src="{{ asset(data_get($ads, 'side_banner_three.0.image', '')) }}" alt="" />
+            <img src="{{ imageUrl(data_get($ads, 'side_banner_three.0.image'), 'assets/frontend/dist/imgs/banner/banner-8.png') }}" alt="" />
         </a>
     </div>
 
@@ -110,35 +135,57 @@
         $(function() {
             // Slider Range JS
             if ($("#slider-range").length) {
-                $(".noUi-handle").on("click", function() {
-                    $(this).width(50);
-                });
                 var rangeSlider = document.getElementById("slider-range");
+                var filterForm = document.querySelector(".shopx-filter-form");
                 var moneyFormat = wNumb({
                     decimals: 0,
                     thousand: ",",
                     prefix: "$"
                 });
+                var minPrice = {{ (int) $priceMin }};
+                var maxPrice = {{ (int) $priceMax }};
+                var selectedFrom = {{ (int) ($from ?? $priceMin) }};
+                var selectedTo = {{ (int) ($to ?? $priceMax) }};
+
+                selectedFrom = Math.max(minPrice, Math.min(selectedFrom, maxPrice));
+                selectedTo = Math.max(minPrice, Math.min(selectedTo, maxPrice));
+
+                if (selectedFrom > selectedTo) {
+                    var swapPrice = selectedFrom;
+                    selectedFrom = selectedTo;
+                    selectedTo = swapPrice;
+                }
+
                 noUiSlider.create(rangeSlider, {
-                    start: [{{ request('from') ?? 0 }}, {{ request('to') ?? 1000 }}],
+                    start: [selectedFrom, selectedTo],
                     step: 1,
                     range: {
-                        min: [0],
-                        max: [2000]
+                        min: [minPrice],
+                        max: [maxPrice]
                     },
-                    format: moneyFormat,
                     connect: true
                 });
 
+                function syncPriceInputs(values) {
+                    var fromValue = Math.round(Number(values[0]));
+                    var toValue = Math.round(Number(values[1]));
+
+                    document.getElementById("slider-range-value1").innerHTML = moneyFormat.to(fromValue);
+                    document.getElementById("slider-range-value2").innerHTML = moneyFormat.to(toValue);
+                    document.getElementById("price_from").value = fromValue;
+                    document.getElementById("price_to").value = toValue;
+                }
+
                 // Set visual min and max values and also update value hidden form inputs
                 rangeSlider.noUiSlider.on("update", function(values, handle) {
-                    document.getElementById("slider-range-value1").innerHTML = values[0];
-                    document.getElementById("slider-range-value2").innerHTML = values[1];
-                    document.getElementById("price_from").value = moneyFormat.from(values[0]);
-                    document.getElementById("price_to").value = moneyFormat.from(values[1]);
-                    // document.getElementsByName("min-value").value = moneyFormat.from(values[0]);
-                    // document.getElementsByName("max-value").value = moneyFormat.from(values[1]);
+                    syncPriceInputs(values);
                 });
+
+                if (filterForm) {
+                    filterForm.addEventListener("submit", function() {
+                        syncPriceInputs(rangeSlider.noUiSlider.get());
+                    });
+                }
             }
         })
     </script>

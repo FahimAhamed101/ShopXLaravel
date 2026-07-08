@@ -15,7 +15,7 @@
                     <div class="row">
                         <div class="col-lg-3 d-none d-lg-flex wow animate__animated animate__fadeIn">
                             <div class="banner-img style-2">
-                                <img src="{{ asset(data_get($ads, 'side_banner_one.0.image', '')) }}" alt="">
+                                <img src="{{ imageUrl(data_get($ads, 'side_banner_one.0.image'), 'assets/frontend/dist/imgs/banner/banner-9.png') }}" alt="">
                                 <div class="banner-text">
                                     <h2 class="mb-50">{{ data_get($ads, 'side_banner_one.0.title', '') }}</h2>
                                     <a href="{{ data_get($ads, 'side_banner_one.0.url', '') }}" class="btn btn-xs">Shop

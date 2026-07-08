@@ -24,7 +24,7 @@
                             @foreach($wishlistItems as $item)
                             <tr class="pt-30">
 
-                                <td class="image product-thumbnail pt-40"><img src="{{ asset($item->product?->primaryImage?->path) }}"
+                                <td class="image product-thumbnail pt-40"><img src="{{ imageUrl($item->product?->primaryImage?->path) }}"
                                         alt="#" /></td>
                                 <td class="product-des product-name">
                                     <h6><a class="product-name mb-10" href="{{ route('products.show', $item->product->slug) }}">{{ $item->product?->name }}</a></h6>
