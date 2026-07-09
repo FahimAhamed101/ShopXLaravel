@@ -59,16 +59,30 @@
                     <div class="price-filter-inner">
                         <div id="slider-range" class="mb-20"></div>
                         <div class="d-flex justify-content-between">
-                            <div class="caption">From: <strong id="slider-range-value1"
-                                    class="text-brand"></strong>
+                            <div class="caption">From: <span class="shopx-price-prefix">$</span>
+                                <input
+                                    type="number"
+                                    name="from"
+                                    id="price_from"
+                                    class="shopx-price-input"
+                                    min="{{ (int) $priceMin }}"
+                                    max="{{ (int) $priceMax }}"
+                                    value="{{ (int) ($from ?? $priceMin) }}"
+                                >
                             </div>
-                            <div class="caption">To: <strong id="slider-range-value2"
-                                    class="text-brand"></strong>
+                            <div class="caption">To: <span class="shopx-price-prefix">$</span>
+                                <input
+                                    type="number"
+                                    name="to"
+                                    id="price_to"
+                                    class="shopx-price-input"
+                                    min="{{ (int) $priceMin }}"
+                                    max="{{ (int) $priceMax }}"
+                                    value="{{ (int) ($to ?? $priceMax) }}"
+                                >
                             </div>
                         </div>
                     </div>
-                    <input type="hidden" name="from" id="price_from" value="{{ (int) ($from ?? $priceMin) }}">
-                    <input type="hidden" name="to" id="price_to" value="{{ (int) ($to ?? $priceMax) }}">
                 </div>
                 @if ($brands->isNotEmpty() || $tags->isNotEmpty())
                     <div class="list-group">
@@ -156,34 +170,61 @@
                     selectedTo = swapPrice;
                 }
 
-                noUiSlider.create(rangeSlider, {
-                    start: [selectedFrom, selectedTo],
-                    step: 1,
-                    range: {
-                        min: [minPrice],
-                        max: [maxPrice]
-                    },
-                    connect: true
-                });
-
                 function syncPriceInputs(values) {
                     var fromValue = Math.round(Number(values[0]));
                     var toValue = Math.round(Number(values[1]));
 
-                    document.getElementById("slider-range-value1").innerHTML = moneyFormat.to(fromValue);
-                    document.getElementById("slider-range-value2").innerHTML = moneyFormat.to(toValue);
                     document.getElementById("price_from").value = fromValue;
                     document.getElementById("price_to").value = toValue;
                 }
 
-                // Set visual min and max values and also update value hidden form inputs
-                rangeSlider.noUiSlider.on("update", function(values, handle) {
-                    syncPriceInputs(values);
-                });
+                if (typeof noUiSlider !== "undefined") {
+                    noUiSlider.create(rangeSlider, {
+                        start: [selectedFrom, selectedTo],
+                        step: 1,
+                        range: {
+                            min: [minPrice],
+                            max: [maxPrice]
+                        },
+                        connect: true
+                    });
+
+                    rangeSlider.noUiSlider.on("update", function(values) {
+                        syncPriceInputs(values);
+                    });
+
+                    $("#price_from, #price_to").on("change", function() {
+                        var inputFrom = Number(document.getElementById("price_from").value || minPrice);
+                        var inputTo = Number(document.getElementById("price_to").value || maxPrice);
+
+                        inputFrom = Math.max(minPrice, Math.min(inputFrom, maxPrice));
+                        inputTo = Math.max(minPrice, Math.min(inputTo, maxPrice));
+
+                        if (inputFrom > inputTo) {
+                            var swapInput = inputFrom;
+                            inputFrom = inputTo;
+                            inputTo = swapInput;
+                        }
+
+                        rangeSlider.noUiSlider.set([inputFrom, inputTo]);
+                    });
+                }
 
                 if (filterForm) {
                     filterForm.addEventListener("submit", function() {
-                        syncPriceInputs(rangeSlider.noUiSlider.get());
+                        var submitFrom = Number(document.getElementById("price_from").value || minPrice);
+                        var submitTo = Number(document.getElementById("price_to").value || maxPrice);
+
+                        submitFrom = Math.max(minPrice, Math.min(submitFrom, maxPrice));
+                        submitTo = Math.max(minPrice, Math.min(submitTo, maxPrice));
+
+                        if (submitFrom > submitTo) {
+                            var swapSubmit = submitFrom;
+                            submitFrom = submitTo;
+                            submitTo = swapSubmit;
+                        }
+
+                        syncPriceInputs([submitFrom, submitTo]);
                     });
                 }
             }

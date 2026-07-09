@@ -303,12 +303,42 @@
             color: #7e7e7e;
             font-size: 14px;
             display: flex;
+            align-items: center;
             gap: 4px;
             white-space: nowrap;
         }
 
         .product-index-page .price-filter .text-brand {
             color: var(--colorSecondary) !important;
+        }
+
+        .product-index-page .shopx-price-prefix {
+            color: var(--colorSecondary);
+            font-weight: 700;
+        }
+
+        .product-index-page .shopx-price-input {
+            width: 58px;
+            height: auto;
+            padding: 0;
+            border: 0;
+            background: transparent;
+            color: var(--colorSecondary);
+            font-weight: 700;
+            line-height: 1.4;
+            appearance: textfield;
+            -moz-appearance: textfield;
+        }
+
+        .product-index-page .shopx-price-input:focus {
+            outline: 0;
+            border-bottom: 1px solid var(--colorSecondary);
+        }
+
+        .product-index-page .shopx-price-input::-webkit-outer-spin-button,
+        .product-index-page .shopx-price-input::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
         }
 
         .product-index-page .price_range .btn {
