@@ -15,6 +15,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Session;
+use Illuminate\Validation\ValidationException;
 
 class CheckoutController extends Controller
 {
@@ -28,10 +29,17 @@ class CheckoutController extends Controller
 
         $groupedCartItems = $this->groupedCartItems();
         $shippingMethods = Schema::hasTable('shipping_rules')
-            ? ShippingRule::query()->get()
+            ? ShippingRule::query()->availableFor(cartTotal())->get()
+            : collect();
+        $addresses = Schema::hasTable('addresses')
+            ? Address::query()
+                ->where('user_id', auth('web')->id())
+                ->orderByDesc('is_default')
+                ->latest('id')
+                ->get()
             : collect();
 
-        return view('frontend.pages.checkout', compact('groupedCartItems', 'shippingMethods'));
+        return view('frontend.pages.checkout', compact('groupedCartItems', 'shippingMethods', 'addresses'));
     }
 
     public function shippingMethod(int $id): JsonResponse
@@ -39,7 +47,7 @@ class CheckoutController extends Controller
         $charge = 0;
 
         if (Schema::hasTable('shipping_rules')) {
-            $charge = (float) (ShippingRule::find($id)?->charge ?? 0);
+            $charge = (float) (ShippingRule::query()->availableFor(cartTotal())->find($id)?->charge ?? 0);
         }
 
         return response()->json([
@@ -59,8 +67,16 @@ class CheckoutController extends Controller
         $billingAddress = $this->ownedAddress($request->integer('billing_address_id'));
         $shippingAddress = $this->ownedAddress($request->integer('shipping_address_id'));
 
+        $shippingMethodId = $request->integer('shipping_method_id') ?: null;
+
+        if ($shippingMethodId && ! ShippingRule::query()->availableFor(cartTotal())->whereKey($shippingMethodId)->exists()) {
+            throw ValidationException::withMessages([
+                'shipping_method_id' => 'The selected shipping method is not available for this order.',
+            ]);
+        }
+
         Session::put('billing_info', [
-            'shipping_method_id' => $request->integer('shipping_method_id'),
+            'shipping_method_id' => $shippingMethodId,
             'billing_address' => $billingAddress ? $this->addressPayload($billingAddress) : null,
             'shipping_address' => $shippingAddress ? $this->addressPayload($shippingAddress) : null,
         ]);

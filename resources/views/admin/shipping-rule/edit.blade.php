@@ -52,7 +52,7 @@
                          <div class="col-md-12">
                             <div class="mb-2">
                                 <label class="form-check form-switch form-switch-3">
-                                    <input @checked($shippingRule->is_active) class="form-check-input" type="checkbox" checked="" name="is_active"
+                                    <input @checked(old('is_active', $shippingRule->is_active)) class="form-check-input" type="checkbox" name="is_active"
                                         id="status" value="1">
                                     <span class="form-check-label">Active</span>
                                 </label>

@@ -90,9 +90,16 @@
                                             <h4 class="text-brand">Out of stock</h4>
                                         </td>
                                     @endif
-                                    <td class="action text-center" data-title="Remove"><a
-                                            href="{{ route('cart.destroy', $cartItem->id) }}"
-                                            class="text-body delete-item"><i class="fi-rs-trash"></i></a></td>
+                                    <td class="action text-center" data-title="Remove">
+                                        <form action="{{ route('cart.destroy', $cartItem->id) }}" method="POST">
+                                            @csrf
+                                            @method('DELETE')
+                                            <button type="submit" class="text-body border-0 bg-transparent p-0"
+                                                aria-label="Remove {{ $cartItem->product?->name }} from cart">
+                                                <i class="fi-rs-trash"></i>
+                                            </button>
+                                        </form>
+                                    </td>
                                 </tr>
                             @empty
                                 <tr class="pt-30">
@@ -216,31 +223,54 @@
 @push('scripts')
     <script>
         $(function() {
+            // The theme quantity controls only change the input visually. Cart controls
+            // must persist each change and continue working after the table is redrawn.
+            $('.cart-items .qty-up, .cart-items .qty-down').off('click');
 
+            function updateCartQuantity($input, quantity) {
+                const previousQuantity = parseInt($input.val(), 10) || 1;
+                const nextQuantity = Math.max(1, quantity);
 
+                $input.val(nextQuantity).prop('disabled', true);
 
-            $(document).on('change', '.qty-val', function() {
                 $.ajax({
                     url: "{{ route('cart.update') }}",
                     method: 'PUT',
                     data: {
                         _token: '{{ csrf_token() }}',
-                        qty: $(this).val(),
-                        id: $(this).data('cart-item')
-                    },
-                    beforeSend: function() {
-
+                        qty: nextQuantity,
+                        id: $input.data('cart-item')
                     },
                     success: function(response) {
                         $('.cart-items').html(response.html);
-                        $('.cart_sub_total').html(response.cart_sub_total);
+                        $('.cart_sub_total').text(response.cart_sub_total);
+                        $('.discount').text('$ ' + response.discount);
+                        $('.total').text(response.total);
+                        notyf.success(response.message);
                     },
-                    error: function(xhr, status, error) {
-                        console.log(xhr)
-                        let errors = xhr.responseJSON;
-                        Object.values(errors).forEach((err) => notyf.error(err));
+                    error: function(xhr) {
+                        $input.val(previousQuantity);
+                        notyf.error(xhr.responseJSON?.message || 'Cart quantity could not be updated.');
+                    },
+                    complete: function() {
+                        $input.prop('disabled', false);
                     }
-                })
+                });
+            }
+
+            $(document).on('click', '.cart-items .qty-up, .cart-items .qty-down', function(event) {
+                event.preventDefault();
+                const $input = $(this).siblings('.qty-val');
+                const currentQuantity = parseInt($input.val(), 10) || 1;
+                const nextQuantity = $(this).hasClass('qty-up')
+                    ? currentQuantity + 1
+                    : currentQuantity - 1;
+
+                updateCartQuantity($input, nextQuantity);
+            });
+
+            $(document).on('change', '.cart-items .qty-val', function() {
+                updateCartQuantity($(this), parseInt($(this).val(), 10) || 1);
             })
 
             // handle coupon submit

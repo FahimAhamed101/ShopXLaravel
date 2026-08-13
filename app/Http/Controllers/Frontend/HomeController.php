@@ -8,7 +8,6 @@ use App\Models\CustomPage;
 use App\Models\FlashSale;
 use App\Models\HeroBanner;
 use App\Models\Order;
-use App\Models\OrderProduct;
 use App\Models\PopularCategory;
 use App\Models\Product;
 use App\Models\ProductReview;
@@ -17,16 +16,14 @@ use App\Models\Slider;
 use App\Services\AlertService;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\ValidationException;
 
 class HomeController extends Controller
 {
-    function index(): View
+    public function index(): View
     {
         $categories = getNestedCategories();
         $featuredCategories = $this->featuredCategories();
@@ -44,9 +41,8 @@ class HomeController extends Controller
         $productSectionsIds = [
             $productSections?->category_one,
             $productSections?->category_two,
-            $productSections?->category_three
+            $productSections?->category_three,
         ];
-
 
         $hotProducts = $this->productShowcase('is_hot');
         $newProducts = $this->productShowcase('is_new');
@@ -72,9 +68,9 @@ class HomeController extends Controller
         ));
     }
 
-    function productsByCategory(array $categoryIds, $featured = true, $limit = 12)
+    public function productsByCategory(array $categoryIds, $featured = true, $limit = 12)
     {
-        if (!$this->catalogReady()) {
+        if (! $this->catalogReady()) {
             return [];
         }
 
@@ -98,16 +94,14 @@ class HomeController extends Controller
 
                 $products = $query->get();
 
-
                 $results[$categoryId] = $products;
             }
         }
 
-
         return $results;
     }
 
-    function storeReview(Request $request, Product $product): JsonResponse
+    public function storeReview(Request $request, Product $product): JsonResponse
     {
         if (! $this->reviewFeaturesReady()) {
             throw ValidationException::withMessages([
@@ -124,18 +118,18 @@ class HomeController extends Controller
             $query->where('product_id', $product->id);
         })->exists();
 
-        if (!$productPurchasedByUser) {
+        if (! $productPurchasedByUser) {
             throw ValidationException::withMessages([
-                'review' => 'You have not purchased this product'
+                'review' => 'You have not purchased this product',
             ]);
         }
         if (ProductReview::where('product_id', $product->id)->where('user_id', user()->id)->exists()) {
             throw ValidationException::withMessages([
-                'review' => 'You have already reviewed this product'
+                'review' => 'You have already reviewed this product',
             ]);
         }
 
-        $review = new ProductReview();
+        $review = new ProductReview;
         $review->product_id = $product->id;
         $review->user_id = user()->id;
         $review->rating = $request->rating;
@@ -147,27 +141,32 @@ class HomeController extends Controller
         return response()->json(['status' => 'success', 'message' => 'Product Review Added Successfully']);
     }
 
-    function customPage(string $slug): View
+    public function customPage(string $slug): View
     {
         abort_unless(class_exists(CustomPage::class) && tableHasColumns('custom_pages', ['slug', 'is_active']), 404);
 
         $page = CustomPage::where('slug', $slug)->where('is_active', true)->firstOrFail();
+
         return view('frontend.pages.custom-page', compact('page'));
     }
 
-    function flashSales(): View
+    public function flashSales(): View
     {
         $flashSale = $this->safeFirst(FlashSale::class, 'flash_sales', ['products', 'sale_start', 'sale_end', 'is_active']);
-        $flashSaleProducts = $this->catalogReady()
+        $isRunning = $flashSale?->is_active && now()->between(
+            $flashSale->sale_start,
+            $flashSale->sale_end->copy()->endOfDay(),
+        );
+        $flashSaleProducts = $this->catalogReady() && $isRunning
             ? $this->applyReviewAggregate(Product::query())->whereIn('id', $flashSale?->products ?? [])->paginate(20)
-            : collect();
+            : Product::query()->whereRaw('1 = 0')->paginate(20);
 
         return view('frontend.pages.flash-sale', compact('flashSale', 'flashSaleProducts'));
     }
 
     protected function safeCollection(string $modelClass, string $table, array $requiredColumns = [], ?callable $callback = null): Collection
     {
-        if (!class_exists($modelClass) || !tableHasColumns($table, $requiredColumns)) {
+        if (! class_exists($modelClass) || ! tableHasColumns($table, $requiredColumns)) {
             return collect();
         }
 
@@ -178,7 +177,7 @@ class HomeController extends Controller
 
     protected function safeFirst(string $modelClass, string $table, array $requiredColumns = []): mixed
     {
-        if (!class_exists($modelClass) || !tableHasColumns($table, $requiredColumns)) {
+        if (! class_exists($modelClass) || ! tableHasColumns($table, $requiredColumns)) {
             return null;
         }
 
@@ -187,7 +186,7 @@ class HomeController extends Controller
 
     protected function featuredCategories(): Collection
     {
-        if (!tableHasColumns('categories', ['is_featured']) || !Schema::hasTable('category_product')) {
+        if (! tableHasColumns('categories', ['is_featured']) || ! Schema::hasTable('category_product')) {
             return collect();
         }
 
@@ -199,7 +198,7 @@ class HomeController extends Controller
 
     protected function popularCategoryIds(): array
     {
-        if (!tableHasColumns('popular_categories', ['categories'])) {
+        if (! tableHasColumns('popular_categories', ['categories'])) {
             return [];
         }
 
@@ -216,7 +215,7 @@ class HomeController extends Controller
 
     protected function productShowcase(string $column): Collection
     {
-        if (!$this->catalogReady() || !Schema::hasColumn('products', $column)) {
+        if (! $this->catalogReady() || ! Schema::hasColumn('products', $column)) {
             return collect();
         }
 
@@ -231,7 +230,7 @@ class HomeController extends Controller
 
     protected function topRatedProducts(): Collection
     {
-        if (!$this->catalogReady()) {
+        if (! $this->catalogReady()) {
             return collect();
         }
 

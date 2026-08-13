@@ -16,7 +16,7 @@
                         <div class="col-md-4">
                             <div class="mb-3">
                                 <label class="form-label required">Code</label>
-                                <input type="text" class="form-control" name="code" placeholder="" value="">
+                                <input type="text" class="form-control" name="code" value="{{ old('code') }}">
                                 <x-input-error :messages="$errors->get('code')" class="mt-2" />
                             </div>
                         </div>
@@ -24,7 +24,7 @@
                         <div class="col-md-4">
                             <div class="mb-3">
                                 <label class="form-label required">Value</label>
-                                <input type="text" class="form-control" name="value" placeholder="" value="">
+                                <input type="number" min="0.01" step="0.01" class="form-control" name="value" value="{{ old('value') }}">
                                 <x-input-error :messages="$errors->get('value')" class="mt-2" />
                             </div>
                         </div>
@@ -33,8 +33,8 @@
                             <div class="mb-3">
                                 <label class="form-label required">Is Percentage</label>
                                 <select name="is_percent" id="" class="form-control">
-                                    <option value="0">No</option>
-                                    <option value="1">Yes</option>
+                                    <option @selected(old('is_percent') == '0') value="0">No</option>
+                                    <option @selected(old('is_percent') == '1') value="1">Yes</option>
                                 </select>
                                 <x-input-error :messages="$errors->get('is_percent')" class="mt-2" />
                             </div>
@@ -43,8 +43,8 @@
                         <div class="col-md-6">
                             <div class="mb-3">
                                 <label class="form-label required">Minimum Spend</label>
-                                <input type="text" class="form-control" name="minimum_spend" placeholder=""
-                                    value="">
+                                <input type="number" min="0" step="0.01" class="form-control" name="minimum_spend"
+                                    value="{{ old('minimum_spend', 0) }}">
                                 <x-input-error :messages="$errors->get('minimum_spend')" class="mt-2" />
                             </div>
                         </div>
@@ -52,17 +52,17 @@
                         <div class="col-md-6">
                             <div class="mb-3">
                                 <label class="form-label required">Maximum Spend</label>
-                                <input type="text" class="form-control" name="maximum_spend" placeholder=""
-                                    value="">
+                                <input type="number" min="0" step="0.01" class="form-control" name="maximum_spend"
+                                    value="{{ old('maximum_spend') }}">
                                 <x-input-error :messages="$errors->get('maximum_spend')" class="mt-2" />
                             </div>
                         </div>
 
                         <div class="col-md-6">
                             <div class="mb-3">
-                                <label class="form-label required">Usage Limit Per Couon</label>
-                                <input type="text" class="form-control" name="usage_limit_per_coupon" placeholder=""
-                                    value="">
+                                <label class="form-label required">Usage Limit Per Coupon</label>
+                                <input type="number" min="1" class="form-control" name="usage_limit_per_coupon"
+                                    value="{{ old('usage_limit_per_coupon', 1) }}">
                                 <x-input-error :messages="$errors->get('usage_limit_per_coupon')" class="mt-2" />
                             </div>
                         </div>
@@ -70,8 +70,8 @@
                         <div class="col-md-6">
                             <div class="mb-3">
                                 <label class="form-label required">Usage Limit Per Customer</label>
-                                <input type="text" class="form-control" name="usage_limit_per_customer" placeholder=""
-                                    value="">
+                                <input type="number" min="1" class="form-control" name="usage_limit_per_customer"
+                                    value="{{ old('usage_limit_per_customer', 1) }}">
                                 <x-input-error :messages="$errors->get('usage_limit_per_customer')" class="mt-2" />
                             </div>
                         </div>
@@ -80,7 +80,7 @@
                             <div class="mb-3">
                                 <label class="form-label required">Start Date</label>
                                 <input type="text" class="form-control datepicker" name="start_date" placeholder=""
-                                    value="">
+                                    value="{{ old('start_date') }}">
                                 <x-input-error :messages="$errors->get('start_date')" class="mt-2" />
                             </div>
                         </div>
@@ -89,7 +89,7 @@
                             <div class="mb-3">
                                 <label class="form-label required">End Date</label>
                                 <input type="text" class="form-control datepicker" name="end_date" placeholder=""
-                                    value="">
+                                    value="{{ old('end_date') }}">
                                 <x-input-error :messages="$errors->get('end_date')" class="mt-2" />
                             </div>
                         </div>

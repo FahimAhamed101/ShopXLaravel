@@ -24,7 +24,7 @@
                             </tr>
                         </thead>
                         <tbody>
-                            @foreach ($shippingRules as $shippingRule)
+                            @forelse ($shippingRules as $shippingRule)
                                 <tr>
                                     <td>{{ $loop->iteration }}</td>
                                     <td>{{ $shippingRule->name }}</td>
@@ -48,13 +48,17 @@
                                                 class="ti ti-trash"></i></a>
                                     </td>
                                 </tr>
-                            @endforeach
+                            @empty
+                                <tr>
+                                    <td colspan="7" class="text-center">No shipping rules found.</td>
+                                </tr>
+                            @endforelse
 
                         </tbody>
                     </table>
                 </div>
                 <div class="card-footer">
-                    {{-- {{ $kycRequests->links() }} --}}
+                    {{ $shippingRules->links() }}
                 </div>
             </div>
         </div>

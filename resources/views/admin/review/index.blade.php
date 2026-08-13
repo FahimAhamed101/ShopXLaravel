@@ -28,10 +28,14 @@
                                             <div class="d-flex gap-2">
 
                                                 <img style="width: 50px; height: 50px; object-fit: cover"
-                                                    src="{{ asset($review->product->primaryImage->path) }}" alt="">
-                                                <a href="{{ route('products.show', ['slug' => $review->product->slug]) }}">
-                                                    <p>{{ truncate($review->product->name, 50) }}</p>
-                                                </a>
+                                                    src="{{ imageUrl($review->product?->primaryImage?->path) }}" alt="">
+                                                @if ($review->product?->slug)
+                                                    <a href="{{ route('products.show', ['slug' => $review->product->slug]) }}">
+                                                        <p>{{ truncate($review->product->name, 50) }}</p>
+                                                    </a>
+                                                @else
+                                                    <p>Product unavailable</p>
+                                                @endif
                                             </div>
                                         </td>
                                         <td>
@@ -44,7 +48,7 @@
                                         </td>
 
                                         <td>
-                                            {{ date('Y-m-d', strtotime($review->created_at)) }}
+                                            {{ $review->created_at?->format('Y-m-d') ?? '—' }}
                                         </td>
                                         <td>
                                             <a href="{{ route('admin.reviews.destroy', $review) }}" class="btn btn-danger btn-sm delete-item"><i class="ti ti-trash"></i></a>

@@ -5,36 +5,39 @@ namespace App\Http\Controllers\Frontend;
 use App\Http\Controllers\Controller;
 use App\Models\Cart;
 use App\Models\Coupon;
+use App\Models\Order;
 use App\Models\Product;
 use App\Models\ProductVariant;
 use App\Services\AlertService;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
-use Illuminate\Support\Collection;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Session;
 use Illuminate\Validation\ValidationException;
 
 class CartController extends Controller
 {
-    function index(): View
+    public function index(): View
     {
         $cartItems = $this->cartItems();
 
         if (Session::has('coupon') && Schema::hasTable('coupons')) {
             $coupon = Coupon::find(Session::get('coupon')['id']);
             $validateCoupon = $this->validateCoupon($coupon, $this->cartSubTotal());
-            if(isset($validateCoupon['error'])) {
+            if (isset($validateCoupon['error'])) {
                 Session::forget('coupon');
             }
         }
+
         return view('frontend.pages.cart', compact('cartItems'));
     }
 
-    function productModal(Product $product): String
+    public function productModal(Product $product): string
     {
         if (! view()->exists('components.frontend.product-quick-view-modal')) {
             return '';
@@ -49,7 +52,7 @@ class CartController extends Controller
         return $modal;
     }
 
-    function addToCart(Request $request)
+    public function addToCart(Request $request)
     {
         $request->validate([
             'product_id' => ['required', 'integer', 'exists:products,id'],
@@ -73,7 +76,7 @@ class CartController extends Controller
             return response()->json([
                 'status' => 'success',
                 'modal' => $this->productModal($product),
-                'show_modal' => true
+                'show_modal' => true,
             ]);
         }
 
@@ -82,11 +85,11 @@ class CartController extends Controller
 
         // Duplicate check
         if ($this->cartItemExists($product->id, $variantId)) {
-                return response()->json([
-                    'status' => 'error',
-                    'message' => 'Product already added to cart'
-                ], 409);
-            }
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Product already added to cart',
+            ], 409);
+        }
 
         $this->store($request, $product, $variantId, $quantity);
 
@@ -94,14 +97,14 @@ class CartController extends Controller
             'status' => 'success',
             'message' => 'Product added to cart successfully',
             'cart_count' => cartCount(),
-            'show_modal' => false
+            'show_modal' => false,
         ]);
     }
 
-    function checkStock(Product $product, ?ProductVariant $variant, int $quantity)
+    public function checkStock(Product $product, ?ProductVariant $variant, int $quantity)
     {
-        if($variant) {
-            if(!$variant->in_stock || !$variant->is_active || ($variant->manage_stock && $variant->qty < $quantity)) {
+        if ($variant) {
+            if (! $variant->in_stock || ! $variant->is_active || ($variant->manage_stock && $variant->qty < $quantity)) {
                 abort(422, 'Product out of stock');
             }
 
@@ -110,12 +113,12 @@ class CartController extends Controller
 
         $manageStock = $product->manage_stock === 'yes' || $product->manage_stock === 1 || $product->manage_stock === true;
 
-        if(!$product->in_stock || ($manageStock && (int) $product->qty < $quantity)) {
+        if (! $product->in_stock || ($manageStock && (int) $product->qty < $quantity)) {
             abort(422, 'Product out of stock');
         }
     }
 
-    function store(Request $request, Product $product, mixed $variantId, int $quantity)
+    public function store(Request $request, Product $product, mixed $variantId, int $quantity)
     {
         if (! user()) {
             $cart = Session::get('guest_cart', []);
@@ -134,7 +137,7 @@ class CartController extends Controller
             return;
         }
 
-        $cart = new Cart();
+        $cart = new Cart;
         $cart->user_id = user()->id;
         $cart->product_id = $product->id;
         $cart->variant_id = $variantId;
@@ -143,71 +146,76 @@ class CartController extends Controller
         $cart->save();
     }
 
-
-    function updateCart(Request $request)
+    public function updateCart(Request $request)
     {
+        $validated = $request->validate([
+            'id' => ['required'],
+            'qty' => ['required', 'integer', 'min:1'],
+        ]);
+        $quantity = (int) $validated['qty'];
+
         if (! user()) {
             $cart = Session::get('guest_cart', []);
-            $cartItem = $this->guestCartItems()->firstWhere('id', $request->id);
+            $cartItem = $this->guestCartItems()->firstWhere('id', $validated['id']);
 
-            if (! $cartItem || ! isset($cart[$request->id])) {
+            if (! $cartItem || ! isset($cart[$validated['id']])) {
                 return response()->json(['message' => 'Cart item not found'], 404);
             }
 
             $product = $cartItem->product;
             $productPriceAndQty = $product->getVariantOrProductPriceAndStock($cartItem->variant_id);
 
-            if (!$productPriceAndQty['in_stock']) {
+            if (! $this->quantityIsAvailable($productPriceAndQty, $quantity)) {
                 return response()->json(['message' => 'Product out of stock'], 422);
             }
 
-            if ($productPriceAndQty['qty'] > $request->qty || $productPriceAndQty['qty'] == 'Unlimited') {
-                $cart[$request->id]['quantity'] = max((int) $request->qty, 1);
-                Session::put('guest_cart', $cart);
-                $cartItems = $this->guestCartItems();
-                $cartHtml = view('components.frontend.cart-item', compact('cartItems'))->render();
+            $cart[$validated['id']]['quantity'] = $quantity;
+            Session::put('guest_cart', $cart);
 
-                return response()->json([
-                    'message' => 'Cart updated successfully',
-                    'html' => $cartHtml,
-                    'cart_sub_total' => $this->cartSubTotal(),
-                ], 200);
-            }
-
-            return response()->json(['message' => 'Product out of stock'], 422);
+            return $this->cartUpdateResponse($this->guestCartItems());
         }
 
-        $cartItem = Cart::findOrFail($request->id);
+        $cartItem = Cart::query()
+            ->where('user_id', user()->id)
+            ->findOrFail($validated['id']);
         $product = Product::findOrFail($cartItem->product_id);
         $productPriceAndQty = $product->getVariantOrProductPriceAndStock($cartItem->variant_id);
 
-
-        if(!$productPriceAndQty['in_stock']){
-            return response()->json([
-                'message' => 'Product out of stock'
-            ], 422);
+        if (! $this->quantityIsAvailable($productPriceAndQty, $quantity)) {
+            return response()->json(['message' => 'Product out of stock'], 422);
         }
 
-        if($productPriceAndQty['qty'] > $request->qty || $productPriceAndQty['qty'] == 'Unlimited') {
-            $cartItem->quantity = $request->qty;
-            $cartItem->save();
+        $cartItem->quantity = $quantity;
+        $cartItem->save();
 
-            $cartItems = Cart::with('product')->where('user_id', user()->id)->get();
-            $cartHtml = view('components.frontend.cart-item', compact('cartItems'))->render();
-            return response()->json([
-                'message' => 'Cart updated successfully',
-                'html' => $cartHtml,
-                'cart_sub_total' => $this->cartSubTotal()
-            ], 200);
-        }
-
-        return response()->json([
-            'message' => 'Product out of stock'
-        ], 422);
-
+        return $this->cartUpdateResponse(
+            Cart::with('product')->where('user_id', user()->id)->get()
+        );
     }
 
-    function cartSubTotal()
+    protected function quantityIsAvailable(array $priceAndStock, int $quantity): bool
+    {
+        return (bool) ($priceAndStock['in_stock'] ?? false)
+            && (($priceAndStock['qty'] ?? 0) === 'Unlimited' || (int) $priceAndStock['qty'] >= $quantity);
+    }
+
+    protected function cartUpdateResponse(Collection $cartItems): JsonResponse
+    {
+        $cartSubTotal = round($this->cartSubTotal(), 2);
+        $discount = round(cartDiscount(), 2);
+        $cartHtml = view('components.frontend.cart-item', compact('cartItems'))->render();
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Cart updated successfully',
+            'html' => $cartHtml,
+            'cart_sub_total' => $cartSubTotal,
+            'discount' => $discount,
+            'total' => round($cartSubTotal - $discount, 2),
+        ]);
+    }
+
+    public function cartSubTotal()
     {
         $cartTotal = 0;
         $cartItems = user()
@@ -221,23 +229,24 @@ class CartController extends Controller
         return $cartTotal;
     }
 
-
-    function destroy(string $id) : JsonResponse
+    public function destroy(Request $request, string $id): JsonResponse|RedirectResponse
     {
         if (! user()) {
             $cart = Session::get('guest_cart', []);
             unset($cart[$id]);
             Session::put('guest_cart', $cart);
-
-            return response()->json([
-                'status' => 'success',
-                'message' => 'Cart item deleted successfully',
-            ], 200);
+        } else {
+            Cart::query()
+                ->where('user_id', user()->id)
+                ->findOrFail($id)
+                ->delete();
         }
 
-        $cartItem = Cart::findOrFail($id);
-        $cartItem->delete();
         AlertService::updated('Cart item deleted successfully');
+
+        if (! $request->expectsJson()) {
+            return redirect()->route('cart.index');
+        }
 
         return response()->json([
             'status' => 'success',
@@ -245,8 +254,7 @@ class CartController extends Controller
         ], 200);
     }
 
-
-    function applyCoupon(Request $request)
+    public function applyCoupon(Request $request)
     {
         if (! Schema::hasTable('coupons')) {
             return response()->json([
@@ -258,7 +266,7 @@ class CartController extends Controller
         $cartTotal = $this->cartSubTotal();
 
         $validation = $this->validateCoupon($coupon, $cartTotal);
-        if(isset($validation['error'])) {
+        if (isset($validation['error'])) {
             return response()->json([
                 'message' => $validation['error'],
             ], 422);
@@ -286,29 +294,45 @@ class CartController extends Controller
         ], 200);
     }
 
-    function validateCoupon($coupon, $cartTotal)
+    public function validateCoupon($coupon, $cartTotal)
     {
 
-        if(!$coupon) return ['error' => 'Invalid coupon code'];
+        if (! $coupon) {
+            return ['error' => 'Invalid coupon code'];
+        }
 
-        if(!$coupon->is_active) return ['error' => 'Coupon code is not active'];
+        if (! $coupon->is_active) {
+            return ['error' => 'Coupon code is not active'];
+        }
 
-        if(Carbon::now()->lt($coupon->start_date) || Carbon::now()->gt($coupon->end_date)) return ['error' => 'Coupon is expired or not yet valid.'];
+        if (Carbon::now()->lt($coupon->start_date) || Carbon::now()->gt($coupon->end_date)) {
+            return ['error' => 'Coupon is expired or not yet valid.'];
+        }
 
-        if($cartTotal < $coupon->minimum_spend) return ['error' => 'Minimum spend not reached.'];
+        if ($cartTotal < $coupon->minimum_spend) {
+            return ['error' => 'Minimum spend not reached.'];
+        }
 
-        if($cartTotal > $coupon->maximum_spend) return ['error' => 'Maximum spend exceeded.'];
+        if ($cartTotal > $coupon->maximum_spend) {
+            return ['error' => 'Maximum spend exceeded.'];
+        }
 
-        if($coupon->used >= $coupon->usage_limit_per_coupon) return ['error' => 'Coupon usage limit exceeded.'];
+        if ($coupon->used >= $coupon->usage_limit_per_coupon) {
+            return ['error' => 'Coupon usage limit exceeded.'];
+        }
 
-        // check can user user the coupon
+        if (user() && Schema::hasColumn('orders', 'coupon_id') &&
+            Order::query()->where('user_id', user()->id)->where('coupon_id', $coupon->id)->count() >= $coupon->usage_limit_per_customer) {
+            return ['error' => 'You have reached the usage limit for this coupon.'];
+        }
 
         return [];
     }
 
-    function destroyCoupon()
+    public function destroyCoupon()
     {
         Session::forget('coupon');
+
         return response()->json([
             'status' => 'success',
             'message' => 'Coupon code removed successfully',

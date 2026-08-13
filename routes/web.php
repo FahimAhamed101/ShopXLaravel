@@ -10,11 +10,11 @@ use App\Http\Controllers\Frontend\NewsLetterController;
 use App\Http\Controllers\Frontend\OrderController;
 use App\Http\Controllers\Frontend\PaymentController;
 use App\Http\Controllers\Frontend\ProductPageController;
-use App\Http\Controllers\Frontend\UserDashboardController;
 use App\Http\Controllers\Frontend\ProfileController;
 use App\Http\Controllers\Frontend\StoreController;
 use App\Http\Controllers\Frontend\StoreWithdrawMethodController;
 use App\Http\Controllers\Frontend\StoreWithdrawRequestController;
+use App\Http\Controllers\Frontend\UserDashboardController;
 use App\Http\Controllers\Frontend\UserOrderController;
 use App\Http\Controllers\Frontend\UserPurchasedProductsController;
 use App\Http\Controllers\Frontend\UserTrackOrderController;
@@ -23,19 +23,21 @@ use App\Http\Controllers\Frontend\VendorPageController;
 use App\Http\Controllers\Frontend\VendorProductController;
 use App\Http\Controllers\Frontend\VendorProfileController;
 use App\Http\Controllers\Frontend\WishlistController;
+use App\Http\Controllers\ProfileController as AccountProfileController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', [HomeController::class, 'index'])->name('home.index');
-
 
 /** Products routes */
 Route::get('/products', [ProductPageController::class, 'index'])->name('products.index');
 Route::get('/products/{slug}', [ProductPageController::class, 'show'])->name('products.show');
 
-
 /** Contact Routes */
 Route::get('/contact', [ContactController::class, 'index'])->name('contact.index');
 Route::post('/contact', [ContactController::class, 'store'])->name('contact.store');
+
+/** Stripe sends signed server-to-server events to this public endpoint. */
+Route::post('/stripe/webhook', [PaymentController::class, 'stripeWebhook'])->name('stripe.webhook');
 
 /** Custom Page Route */
 Route::get('/page/{slug}', [HomeController::class, 'customPage'])->name('custom-page.index');
@@ -56,17 +58,16 @@ Route::delete('/cart/{id}', [CartController::class, 'destroy'])->name('cart.dest
 Route::post('/cart/coupon', [CartController::class, 'applyCoupon'])->name('cart.coupon');
 Route::delete('/cart/coupon/remove', [CartController::class, 'destroyCoupon'])->name('cart.coupon.destroy');
 
-
-
-
 Route::group(['middleware' => ['auth', 'verified']], function () {
     Route::get('/dashboard', [UserDashboardController::class, 'index'])->name('dashboard');
 
     /** Profile Routes */
     Route::get('/profile', [ProfileController::class, 'index'])->name('profile');
-    Route::put('/profile', [ProfileController::class, 'profileUpdate'])->name('profile.update');
+    Route::match(['put', 'patch'], '/profile', [ProfileController::class, 'profileUpdate'])->name('profile.update');
+    Route::delete('/profile', [AccountProfileController::class, 'destroy'])->name('profile.destroy');
     Route::put('/profile/password', [ProfileController::class, 'passwordUpdate'])->name('password.update');
 
+    Route::patch('/address/{address}/default', [AddressController::class, 'setDefault'])->name('address.default');
     Route::resource('/address', AddressController::class);
 
     Route::get('/orders', [UserOrderController::class, 'index'])->name('orders.index');
@@ -104,7 +105,6 @@ Route::group(['middleware' => ['auth', 'verified']], function () {
     Route::get('/payment/success', [PaymentController::class, 'paymentSuccess'])->name('payment.success');
     Route::get('/payment/cancel', [PaymentController::class, 'paymentCancel'])->name('payment.cancel');
 
-
     /** Paypal Routes */
     Route::get('/paypal/payment', [PaymentController::class, 'paypalPayment'])->name('paypal.payment');
     Route::get('/paypal/success', [PaymentController::class, 'paypalSuccess'])->name('paypal.success');
@@ -120,9 +120,7 @@ Route::group(['middleware' => ['auth', 'verified']], function () {
     Route::post('/razorpay/payment', [PaymentController::class, 'razorpayPayment'])->name('razorpay.payment');
 });
 
-
 /** Vendor Routes */
-
 Route::group(['prefix' => 'vendor', 'as' => 'vendor.', 'middleware' => ['auth', 'verified', 'role:vendor']], function () {
     Route::get('/dashboard', [VendorDashboardController::class, 'index'])->name('dashboard');
 
@@ -161,7 +159,6 @@ Route::group(['prefix' => 'vendor', 'as' => 'vendor.', 'middleware' => ['auth', 
 
     Route::delete('/products/{product}', [VendorProductController::class, 'destroy'])->name('products.destroy');
 
-
     /** Order Routes */
     Route::get('/orders', [OrderController::class, 'index'])->name('orders.index');
     Route::get('/orders/{order}', [OrderController::class, 'show'])->name('orders.show');
@@ -175,7 +172,4 @@ Route::group(['prefix' => 'vendor', 'as' => 'vendor.', 'middleware' => ['auth', 
     Route::delete('withdraw-requests/{withdraw_request}', [StoreWithdrawRequestController::class, 'destroy'])->name('withdraw-requests.destroy');
 });
 
-
-
-
-require __DIR__ . '/auth.php';
+require __DIR__.'/auth.php';

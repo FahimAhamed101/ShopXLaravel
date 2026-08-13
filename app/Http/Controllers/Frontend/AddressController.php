@@ -9,6 +9,7 @@ use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Validation\Rule;
 
 class AddressController extends Controller
 {
@@ -31,13 +32,15 @@ class AddressController extends Controller
         abort_unless(Schema::hasTable('addresses'), 404);
 
         $data = $this->validatedData($request);
-        $address = new Address();
+        $address = new Address;
         $this->fillAddress($address, $data);
         $address->save();
 
         AlertService::created('Address created successfully.');
 
-        return redirect()->route('address.index');
+        return $request->input('return_to') === 'checkout'
+            ? redirect()->route('checkout.index')->with('address_created', $address->id)
+            : redirect()->route('address.index');
     }
 
     public function show(string $id): RedirectResponse
@@ -68,9 +71,32 @@ class AddressController extends Controller
     public function destroy(int $address): RedirectResponse
     {
         $address = $this->ownedAddress($address);
+        $wasDefault = (bool) $address->is_default;
         $address->delete();
 
+        if ($wasDefault && Schema::hasColumn('addresses', 'is_default')) {
+            Address::query()
+                ->where('user_id', auth('web')->id())
+                ->latest('id')
+                ->first()
+                ?->update(['is_default' => 1]);
+        }
+
         AlertService::updated('Address deleted successfully.');
+
+        return redirect()->route('address.index');
+    }
+
+    public function setDefault(int $address): RedirectResponse
+    {
+        $address = $this->ownedAddress($address);
+
+        Address::query()
+            ->where('user_id', auth('web')->id())
+            ->update(['is_default' => 0]);
+        $address->update(['is_default' => 1]);
+
+        AlertService::updated('Default address updated successfully.');
 
         return redirect()->route('address.index');
     }
@@ -88,12 +114,12 @@ class AddressController extends Controller
         return $request->validate([
             'first_name' => ['required', 'string', 'max:255'],
             'last_name' => ['nullable', 'string', 'max:255'],
-            'phone' => ['nullable', 'string', 'max:100'],
-            'email' => ['nullable', 'email', 'max:255'],
-            'city' => ['nullable', 'string', 'max:255'],
-            'state' => ['nullable', 'string', 'max:255'],
-            'zip' => ['nullable', 'string', 'max:50'],
-            'country' => ['nullable', 'string', 'max:255'],
+            'phone' => ['required', 'string', 'max:30'],
+            'email' => ['required', 'email', 'max:255'],
+            'city' => ['required', 'string', 'max:255'],
+            'state' => ['required', 'string', 'max:255'],
+            'zip' => ['required', 'string', 'max:20'],
+            'country' => ['required', 'string', 'max:255', Rule::in(config('countries', []))],
             'address' => ['required', 'string', 'max:500'],
             'is_default' => ['nullable', 'boolean'],
         ]);
@@ -105,7 +131,13 @@ class AddressController extends Controller
             $address->user_id = auth('web')->id();
         }
 
-        if (($data['is_default'] ?? false) && Schema::hasColumn('addresses', 'is_default')) {
+        $hasOtherAddress = Address::query()
+            ->where('user_id', auth('web')->id())
+            ->when($address->exists, fn ($query) => $query->where('id', '!=', $address->id))
+            ->exists();
+        $shouldBeDefault = (bool) ($data['is_default'] ?? false) || ! $hasOtherAddress;
+
+        if ($shouldBeDefault && Schema::hasColumn('addresses', 'is_default')) {
             Address::query()
                 ->where('user_id', auth('web')->id())
                 ->when($address->exists, fn ($query) => $query->where('id', '!=', $address->id))
@@ -125,7 +157,7 @@ class AddressController extends Controller
             'postal_code' => $data['zip'] ?? '',
             'country' => $data['country'] ?? '',
             'address' => $data['address'],
-            'is_default' => (int) ($data['is_default'] ?? 0),
-        ], fn ($value, $key) => Schema::hasColumn('addresses', $key)));
+            'is_default' => (int) $shouldBeDefault,
+        ], fn ($value, $key) => Schema::hasColumn('addresses', $key), ARRAY_FILTER_USE_BOTH));
     }
 }

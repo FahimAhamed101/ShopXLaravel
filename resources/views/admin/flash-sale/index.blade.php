@@ -16,7 +16,7 @@
                             <div class="mb-3">
                                 <label class="form-label required">Sale Start</label>
                                 <input type="text" class="form-control datepicker" name="sale_start" placeholder=""
-                                    value="{{ $flashSale?->sale_start }}">
+                                    value="{{ old('sale_start', $flashSale?->sale_start?->format('Y-m-d')) }}">
                                 <x-input-error :messages="$errors->get('sale_start')" class="mt-2" />
                             </div>
                         </div>
@@ -25,7 +25,7 @@
                             <div class="mb-3">
                                 <label class="form-label required">Sale End</label>
                                 <input type="text" class="form-control datepicker" name="sale_end" placeholder=""
-                                    value="{{ $flashSale?->sale_end }}">
+                                    value="{{ old('sale_end', $flashSale?->sale_end?->format('Y-m-d')) }}">
                                 <x-input-error :messages="$errors->get('sale_end')" class="mt-2" />
                             </div>
                         </div>
@@ -37,7 +37,7 @@
                                 <select name="products[]" class="form-control product-select" id="" multiple>
                                     @foreach ($products as $product)
                                         <option selected value="{{ $product->id }}"
-                                            data-image="{{ asset($product->primaryImage->path) }}"="">{{ $product->name }}
+                                            data-image="{{ imageUrl($product->primaryImage?->path) }}">{{ $product->name }}
                                         </option>
                                     @endforeach
                                 </select>
@@ -49,7 +49,8 @@
                         <div class="col-md-12">
                             <div class="mb-2">
                                 <label class="form-check form-switch form-switch-3">
-                                    <input class="form-check-input" type="checkbox" checked="" name="status"
+                                    <input class="form-check-input" type="checkbox"
+                                        @checked(old('status', $flashSale?->is_active ?? true)) name="status"
                                         id="status" value="1">
                                     <span class="form-check-label">Active</span>
                                 </label>
@@ -93,7 +94,7 @@
                     },
                     cache: true
                 },
-                placeholder: 'Search for a repository',
+                placeholder: 'Search for products',
                 minimumInputLength: 1,
                 templateResult: formatRepo,
                 templateSelection: formatRepoSelection,
@@ -115,7 +116,7 @@
 
                 let markup = `
                     <div class="d-flex flex-wrap align-items-center p-t">
-                        ${image ? `<img src="${image}" class="rounded me-2" style="width: 20px; height: 20px object-fit: cover">` : ''}
+                        ${image ? `<img src="${image}" class="rounded me-2" style="width: 20px; height: 20px; object-fit: cover">` : ''}
                         <p class="fw-semibold"> ${repo.text} </p>
                     </div>
                 `;
@@ -132,7 +133,7 @@
 
                 let markup = `
                     <div class="d-flex flex-wrap align-items-center p-t">
-                        ${image ? `<img src="${image}" class="rounded me-2" style="width: 20px; height: 20px object-fit: cover">` : ''}
+                        ${image ? `<img src="${image}" class="rounded me-2" style="width: 20px; height: 20px; object-fit: cover">` : ''}
                         <p class="fw-semibold"> ${repo.text} </p>
                     </div>
                 `;

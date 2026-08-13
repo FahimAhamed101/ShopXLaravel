@@ -41,9 +41,16 @@
                 <h4 class="text-brand">Out of stock</h4>
             </td>
         @endif
-        <td class="action text-center" data-title="Remove"><a
-                href="{{ route('cart.destroy', $cartItem->id) }}"
-                class="text-body delete-item"><i class="fi-rs-trash"></i></a></td>
+        <td class="action text-center" data-title="Remove">
+            <form action="{{ route('cart.destroy', $cartItem->id) }}" method="POST">
+                @csrf
+                @method('DELETE')
+                <button type="submit" class="text-body border-0 bg-transparent p-0"
+                    aria-label="Remove {{ $cartItem->product?->name }} from cart">
+                    <i class="fi-rs-trash"></i>
+                </button>
+            </form>
+        </td>
     </tr>
 @empty
     <tr class="pt-30">

@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\PopularCategory;
 use App\Services\AlertService;
-use Illuminate\Console\View\Components\Alert;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controllers\HasMiddleware;
@@ -13,11 +12,10 @@ use Illuminate\Routing\Controllers\Middleware;
 
 class PopularCategoryController extends Controller implements HasMiddleware
 {
-
-    static function Middleware(): array
+    public static function Middleware(): array
     {
         return [
-            new Middleware('permission:Section Management')
+            new Middleware('permission:Section Management'),
         ];
     }
 
@@ -45,7 +43,8 @@ class PopularCategoryController extends Controller implements HasMiddleware
     public function store(Request $request)
     {
         $request->validate([
-            'categories' => 'required'
+            'categories' => ['required', 'array', 'min:1'],
+            'categories.*' => ['integer', 'distinct', 'exists:categories,id'],
         ]);
 
         PopularCategory::updateOrCreate(

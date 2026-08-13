@@ -16,7 +16,7 @@
                                 class="list-group-item list-group-item-action d-flex align-items-center {{ Route::is('admin.stripe-settings.index') ? 'active' : '' }} ">Stripe
                                 Settings</a>
                             <a href="{{ route('admin.razorpay-settings.index') }}"
-                                class="list-group-item list-group-item-action d-flex align-items-center ">Razorpay
+                                class="list-group-item list-group-item-action d-flex align-items-center {{ Route::is('admin.razorpay-settings.index') ? 'active' : '' }}">Razorpay
                                 Settings</a>
                         </div>
 

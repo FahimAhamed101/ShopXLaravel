@@ -7,7 +7,6 @@ use App\Http\Controllers\Admin\Auth\EmailVerificationPromptController;
 use App\Http\Controllers\Admin\Auth\NewPasswordController;
 use App\Http\Controllers\Admin\Auth\PasswordController;
 use App\Http\Controllers\Admin\Auth\PasswordResetLinkController;
-use App\Http\Controllers\Admin\Auth\RegisteredUserController;
 use App\Http\Controllers\Admin\Auth\VerifyEmailController;
 use App\Http\Controllers\Admin\BannerAdController;
 use App\Http\Controllers\Admin\BrandController;
@@ -40,10 +39,6 @@ use App\Http\Controllers\Admin\UserRoleController;
 use App\Http\Controllers\Admin\WithdrawMethodController;
 use App\Http\Controllers\Admin\WithdrawRequestController;
 use App\Http\Controllers\SettingController;
-use App\Models\ContactSectionSetting;
-use App\Models\OfferSlider;
-use App\Models\PopularCategory;
-use App\Models\WithdrawMethod;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware('guest:admin')
@@ -68,7 +63,7 @@ Route::middleware('guest:admin')
             ->name('password.store');
     });
 
-Route::middleware('auth:admin','role:Admin|Super Admin')
+Route::middleware('auth:admin', 'role:Admin|Super Admin')
     ->prefix('admin')
     ->as('admin.')
     ->group(function () {
@@ -96,7 +91,6 @@ Route::middleware('auth:admin','role:Admin|Super Admin')
         Route::post('logout', [AuthenticatedSessionController::class, 'destroy'])
             ->name('logout');
 
-
         /** Profile Routes */
         Route::get('/profile', [ProfileController::class, 'index'])->name('profile.index');
         Route::put('/profile', [ProfileController::class, 'profileUpdate'])->name('profile.update');
@@ -109,7 +103,6 @@ Route::middleware('auth:admin','role:Admin|Super Admin')
         Route::get('/kyc-requests/{kyc_request}', [KycRequestController::class, 'show'])->name('kyc.show');
         Route::get('/kyc-requests/download/{kyc_request}', [KycRequestController::class, 'download'])->name('kyc.download');
         Route::put('/kyc-requests/{kyc_request}/update', [KycRequestController::class, 'update'])->name('kyc.update');
-
 
         /** Role Routes */
         if (class_exists(RoleController::class)) {
@@ -163,15 +156,14 @@ Route::middleware('auth:admin','role:Admin|Super Admin')
 
         Route::delete('/products/{product}', [ProductController::class, 'destroy'])->name('products.destroy');
 
-
         /** Coupons Routes */
         if (class_exists(CouponController::class)) {
-            Route::resource('/coupons', CouponController::class);
+            Route::resource('/coupons', CouponController::class)->except('show');
         }
 
         /**Shipping Routes */
         if (class_exists(ShippingRuleController::class)) {
-            Route::resource('/shipping-rules', ShippingRuleController::class);
+            Route::resource('/shipping-rules', ShippingRuleController::class)->except('show');
         }
 
         /** Payment Setting Routes */
@@ -200,24 +192,23 @@ Route::middleware('auth:admin','role:Admin|Super Admin')
             Route::resource('withdraw-requests', WithdrawRequestController::class);
         }
 
-
         /** Slider Routes */
         if (class_exists(SliderController::class)) {
-            Route::resource('sliders', SliderController::class);
+            Route::resource('sliders', SliderController::class)->except(['show']);
         }
 
         if (class_exists(HeroBannerController::class)) {
-            Route::resource('hero-banners', HeroBannerController::class);
+            Route::resource('hero-banners', HeroBannerController::class)->only(['index', 'store']);
         }
-        Route::resource('popular-categories', PopularCategoryController::class);
+        Route::resource('popular-categories', PopularCategoryController::class)->only(['index', 'store']);
         /** Flash Sale Routes */
         if (class_exists(FlashSaleController::class)) {
             Route::get('get-products', [FlashSaleController::class, 'getProducts'])->name('flash-sales.get-products');
-            Route::resource('flash-sales', FlashSaleController::class);
+            Route::resource('flash-sales', FlashSaleController::class)->only(['index', 'store']);
         }
 
         /** Product Section Routes */
-        Route::resource('product-sections', ProductSectionController::class);
+        Route::resource('product-sections', ProductSectionController::class)->only(['index', 'store']);
 
         /** Reviews Routes */
         if (class_exists(ReviewController::class)) {
@@ -239,7 +230,6 @@ Route::middleware('auth:admin','role:Admin|Super Admin')
         Route::delete('/contact-messages/{contact_message}', [ContactMessageController::class, 'destroy'])->name('contact-messages.destroy');
 
         /** Custom Page Routes */
-
         if (class_exists(CustomPageController::class)) {
             Route::resource('custom-pages', CustomPageController::class);
         }
@@ -250,17 +240,17 @@ Route::middleware('auth:admin','role:Admin|Super Admin')
 
         /** Our Features Routes */
         if (class_exists(OurFeatureController::class)) {
-            Route::resource('our-features', OurFeatureController::class);
+            Route::resource('our-features', OurFeatureController::class)->except(['show']);
         }
 
         /** Social Link Routes */
         if (class_exists(SocialLinkController::class)) {
-            Route::resource('social-links', SocialLinkController::class);
+            Route::resource('social-links', SocialLinkController::class)->except(['show']);
         }
 
         /** Social Link Routes */
         if (class_exists(OfferSliderController::class)) {
-            Route::resource('offer-sliders', OfferSliderController::class);
+            Route::resource('offer-sliders', OfferSliderController::class)->except(['show']);
         }
 
         /** Settings Routes */

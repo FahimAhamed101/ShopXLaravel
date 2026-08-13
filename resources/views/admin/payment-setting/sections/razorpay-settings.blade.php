@@ -11,8 +11,8 @@
                 <div class="col-md-12">
                     <div class="form-label">Razorpay Status</div>
                      <select name="razorpay_status" class="form-control" id="">
-                        <option @selected(config('settings.razorpay_status') == 'active') value="active">Active</option>
-                        <option @selected(config('settings.razorpay_status') == 'inactive') value="inactive">Inactive</option>
+                        <option @selected(setting('razorpay_status') == 'active') value="active">Active</option>
+                        <option @selected(setting('razorpay_status') == 'inactive') value="inactive">Inactive</option>
                     </select>
                     <x-input-error :messages="$errors->get('razorpay_status')" class="mt-2" />
                 </div>
@@ -21,7 +21,7 @@
                     <div class="form-label">Razorpay Currency</div>
                     <select name="razorpay_currency" class="form-control select2" id="">
                         @foreach(config('currencies') as $key => $currency)
-                        <option @selected(config('settings.razorpay_currency') == $key) value="{{ $key }}">{{ $currency }}</option>
+                        <option @selected(setting('razorpay_currency') == $key) value="{{ $key }}">{{ $currency }}</option>
                         @endforeach
                     </select>
                     <x-input-error :messages="$errors->get('razorpay_currency')" class="mt-2" />
@@ -30,22 +30,22 @@
 
                 <div class="col-md-6">
                     <div class="form-label">Razorpay Rate</div>
-                    <input type="text" class="form-control" value="{{ config('settings.razorpay_rate') }}"
+                    <input type="text" class="form-control" value="{{ setting('razorpay_rate') }}"
                         name="razorpay_rate">
                     <x-input-error :messages="$errors->get('razorpay_rate')" class="mt-2" />
                 </div>
 
                 <div class="col-md-6">
                     <div class="form-label">Razorpay Client Id</div>
-                    <input type="text" class="form-control" value="{{ config('settings.razorpay_client_id') }}"
+                    <input type="text" class="form-control" value="{{ setting('razorpay_client_id') }}"
                         name="razorpay_client_id">
                     <x-input-error :messages="$errors->get('razorpay_client_id')" class="mt-2" />
                 </div>
 
                 <div class="col-md-6">
                     <div class="form-label">Razorpay Secret Key</div>
-                    <input type="text" class="form-control" value="{{ config('settings.razorpay_secret') }}"
-                        name="razorpay_secret">
+                    <input type="password" class="form-control" name="razorpay_secret"
+                        placeholder="Leave blank to keep the current secret">
                     <x-input-error :messages="$errors->get('razorpay_secret')" class="mt-2" />
                 </div>
 

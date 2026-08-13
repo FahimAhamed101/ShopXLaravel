@@ -7,30 +7,26 @@
                 <div class="col-12 col-xl-8 wow fadeInUp">
                     <h4>Select Payment </h4>
                     <div class="row mt-10">
-                        <div class="col-6 col-md-4 col-lg-3 col-xl-3 wow fadeInUp">
-                            <a href="{{ route('paypal.payment') }}" class="wsus__payment_method">
-                                <img src="{{ asset('assets/frontend/dist/imgs/paypal.png') }}" alt="payment"
-                                    class="img-fluid w-100">
-                            </a>
-                        </div>
-                        <div class="col-6 col-md-4 col-lg-3 col-xl-3 wow fadeInUp">
-                            <a href="{{ route('stripe.payment') }}" class="wsus__payment_method">
-                                <img src="{{ asset('assets/frontend/dist/imgs/stripe.png') }}" alt="payment"
-                                    class="img-fluid w-100">
-                            </a>
-                        </div>
-                        <div class="col-6 col-md-4 col-lg-3 col-xl-3 wow fadeInUp">
-                            <a href="{{ route('razorpay.redirect') }}" class="wsus__payment_method">
-                                <img src="{{ asset('assets/frontend/dist/imgs/razorpay.png') }}" alt="payment"
-                                    class="img-fluid w-100">
-                            </a>
-                        </div>
-
+                        @forelse ($paymentMethods as $paymentMethod)
+                            <div class="col-6 col-md-4 col-lg-3 col-xl-3 wow fadeInUp">
+                                <a href="{{ $paymentMethod['route'] }}" class="wsus__payment_method"
+                                    aria-label="Pay with {{ $paymentMethod['name'] }}">
+                                    <img src="{{ $paymentMethod['logo'] }}"
+                                        alt="{{ $paymentMethod['name'] }}" class="img-fluid w-100">
+                                </a>
+                            </div>
+                        @empty
+                            <div class="col-12">
+                                <div class="alert alert-warning mb-0" role="alert">
+                                    No payment method is available right now. Please contact support or try again later.
+                                </div>
+                            </div>
+                        @endforelse
                     </div>
                 </div>
                 <div class="col-xl-4">
                     <div class="wsus__billing_summary">
-                        <h4>Billing Summery</h4>
+                        <h4>Billing Summary</h4>
                         @foreach ($groupedCartItems as $key => $cartItems)
                             <h5 class="vendor_name">{{ $cartItems['store']->name }}</h5>
                             <ul class="wsus__billing_product">
@@ -73,41 +69,6 @@
                         <h5>Total <span>$ <span
                                     class="grand_total">{{ $cartSubTotal + $shippingCharge - $cartDiscount }}</span></span>
                         </h5>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div class="modal fade" id="exampleModal" tabindex="-1" aria-hidden="true">
-            <div class="modal-dialog">
-                <div class="modal-content rounded-0">
-                    <div class="modal_payment_popup">
-                        <p>From sleek racing flats to burly hiking boots, there are plenty of options to keep your
-                            feet
-                            comfortable during any activity. Read on to learn how to determine the right athletic
-                            shoes
-                            to
-                            wear for whatever athletic pursuit you're embarking on.</p>
-
-                        <ul class="modal_iteam">
-                            <li>One popular belief, Lorem Ipsum is not simply random.</li>
-                            <li>Lorem ipsum dolor sit amet, consectetur adipiscing elit.</li>
-                            <li>To popular belief, Lorem Ipsum is not simply random.</li>
-                        </ul>
-                        <form class="modal_form">
-                            <div class="single_form">
-                                <label>Enter Something</label>
-                                <input type="text" placeholder="Enter Something">
-                            </div>
-                            <div class="single_form">
-                                <label>Enter Something</label>
-                                <textarea rows="3" placeholder="Enter Something"></textarea>
-                            </div>
-                        </form>
-                        <div class="modal-footer">
-                            <button type="button" class="modal_closs_btn btn hover-up"
-                                data-bs-dismiss="modal">Close</button>
-                            <button type="button" class="btn hover-up">Submit</button>
-                        </div>
                     </div>
                 </div>
             </div>

@@ -201,7 +201,10 @@ if (!function_exists('getPayableAmount')) {
         $cartDiscount = cartDiscount();
         $shippingCharge = 0;
         if (Session::has('billing_info') && class_exists(ShippingRule::class) && tableHasColumns('shipping_rules', ['charge'])) {
-            $shippingCharge = ShippingRule::find(Session::get('billing_info')['shipping_method_id'])?->charge ?? 0;
+            $shippingMethodId = data_get(Session::get('billing_info'), 'shipping_method_id');
+            $shippingCharge = $shippingMethodId
+                ? ShippingRule::query()->availableFor($cartTotal)->find($shippingMethodId)?->charge ?? 0
+                : 0;
         }
 
         return round(($cartTotal + $shippingCharge) - $cartDiscount, 2);
@@ -212,7 +215,11 @@ if (!function_exists('getShippingCharge')) {
     {
 
         if (Session::has('billing_info') && class_exists(ShippingRule::class) && tableHasColumns('shipping_rules', ['charge'])) {
-            return ShippingRule::find(Session::get('billing_info')['shipping_method_id'])?->charge ?? 0;
+            $shippingMethodId = data_get(Session::get('billing_info'), 'shipping_method_id');
+
+            return $shippingMethodId
+                ? ShippingRule::query()->availableFor(cartTotal())->find($shippingMethodId)?->charge ?? 0
+                : 0;
         }
 
         return 0;

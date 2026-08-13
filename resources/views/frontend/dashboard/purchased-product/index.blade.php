@@ -19,18 +19,31 @@
                         </tr>
                     </thead>
                     <tbody>
-                        @foreach($digitalProducts as $product)
+                        @forelse($purchasedProducts as $product)
                         <tr>
-                            <td>#{{ $loop->iteration }}</td>
+                            <td>{{ $product->invoice_id ?: '#'.$product->order_id }}</td>
                             <td>{{ $product->product_name }}</td>
                             <td>{{ date('Y-m-d', strtotime($product->created_at)) }}</td>
-                            <td><a href="{{ route('purchased.products.show', $product->id) }}">View</a></td>
+                            <td>
+                                @if ($product->product_type === 'digital')
+                                    <a href="{{ route('purchased.products.show', $product->id) }}">Downloads</a>
+                                @else
+                                    <a href="{{ route('products.show', $product->slug) }}">View Product</a>
+                                @endif
+                            </td>
 
                         </tr>
-                        @endforeach
+                        @empty
+                            <tr>
+                                <td colspan="4" class="text-center py-4">No paid purchases found yet.</td>
+                            </tr>
+                        @endforelse
 
                     </tbody>
                 </table>
+            </div>
+            <div class="card-footer">
+                {{ $purchasedProducts->links() }}
             </div>
         </div>
     </div>

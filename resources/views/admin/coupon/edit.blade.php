@@ -34,7 +34,7 @@
                             <div class="mb-3">
                                 <label class="form-label required">Is Percentage</label>
                                 <select name="is_percent" id="" class="form-control">
-                                    <option @selected($coupon->is_percent) value="0">No</option>
+                                    <option @selected(! $coupon->is_percent) value="0">No</option>
                                     <option @selected($coupon->is_percent) value="1">Yes</option>
                                 </select>
                                 <x-input-error :messages="$errors->get('is_percent')" class="mt-2" />
@@ -61,7 +61,7 @@
 
                         <div class="col-md-6">
                             <div class="mb-3">
-                                <label class="form-label required">Usage Limit Per Couon</label>
+                                <label class="form-label required">Usage Limit Per Coupon</label>
                                 <input type="text" class="form-control" name="usage_limit_per_coupon" placeholder=""
                                     value="{{ $coupon->usage_limit_per_coupon }}">
                                 <x-input-error :messages="$errors->get('usage_limit_per_coupon')" class="mt-2" />
@@ -81,7 +81,7 @@
                             <div class="mb-3">
                                 <label class="form-label required">Start Date</label>
                                 <input type="text" class="form-control datepicker" name="start_date" placeholder=""
-                                    value="{{ $coupon->start_date }}">
+                                    value="{{ old('start_date', $coupon->start_date?->format('Y-m-d')) }}">
                                 <x-input-error :messages="$errors->get('start_date')" class="mt-2" />
                             </div>
                         </div>
@@ -90,7 +90,7 @@
                             <div class="mb-3">
                                 <label class="form-label required">End Date</label>
                                 <input type="text" class="form-control datepicker" name="end_date" placeholder=""
-                                    value="{{ $coupon->end_date }}">
+                                    value="{{ old('end_date', $coupon->end_date?->format('Y-m-d')) }}">
                                 <x-input-error :messages="$errors->get('end_date')" class="mt-2" />
                             </div>
                         </div>
@@ -98,7 +98,7 @@
                         <div class="col-md-12">
                             <div class="mb-2">
                                 <label class="form-check form-switch form-switch-3">
-                                    <input class="form-check-input" @checked($coupon->is_active) type="checkbox" checked="" name="is_active"
+                                    <input class="form-check-input" @checked(old('is_active', $coupon->is_active)) type="checkbox" name="is_active"
                                         id="status" value="1">
                                     <span class="form-check-label">Active</span>
                                 </label>

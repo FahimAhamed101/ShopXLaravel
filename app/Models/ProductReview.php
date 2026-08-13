@@ -8,7 +8,6 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class ProductReview extends Model
 {
     protected $guarded = [];
-    public $timestamps = false;
 
     protected $casts = [
         'rating' => 'float',

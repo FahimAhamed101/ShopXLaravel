@@ -2,11 +2,11 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -102,7 +102,7 @@ class Product extends Model
             ->map(fn (string $path) => (object) ['path' => $path]);
     }
 
-    public function getPrimaryImageAttribute(): object|null
+    public function getPrimaryImageAttribute(): ?object
     {
         $fallbackImage = $this->fallbackImagePath();
 
@@ -344,7 +344,7 @@ class Product extends Model
 
             if ($variant) {
                 $specialPrice = (float) ($variant->special_price ?? 0);
-                $price = $specialPrice > 0 ? (float) $variant->price : (float) ($variant->price ?? 0);
+                $price = $specialPrice > 0 ? $specialPrice : (float) ($variant->price ?? 0);
                 $oldPrice = $specialPrice > 0 ? (float) ($variant->price ?? 0) : 0;
                 $qty = $this->stockIsManaged($variant->manage_stock ?? false)
                     ? (int) ($variant->qty ?? 0)

@@ -1,6 +1,70 @@
 @extends('frontend.layouts.app')
 
+@push('styles')
+    <style>
+        .checkout-address-card {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            height: 100%;
+            min-height: 150px;
+            padding: 18px;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            background: #fff;
+            cursor: pointer;
+            transition: border-color .2s ease, box-shadow .2s ease, background-color .2s ease;
+        }
+
+        .checkout-address-card:hover,
+        .checkout-address-card.is-selected {
+            border-color: #ff8a00;
+            background: #fffaf3;
+            box-shadow: 0 5px 18px rgba(15, 23, 42, .07);
+        }
+
+        .checkout-address-card .form-check-input {
+            flex: 0 0 auto;
+            margin: 3px 0 0;
+        }
+
+        .checkout-address-card__content {
+            min-width: 0;
+            color: #475569;
+            line-height: 1.55;
+        }
+
+        .checkout-address-card__title {
+            display: block;
+            margin-bottom: 5px;
+            color: #172b4d;
+            font-weight: 700;
+        }
+
+        .checkout-address-card__meta {
+            display: block;
+            margin-top: 8px;
+            color: #64748b;
+            font-size: 14px;
+        }
+
+        .checkout-address-card--new {
+            align-items: center;
+            border-style: dashed;
+        }
+
+        #checkout-address-form {
+            scroll-margin-top: 24px;
+        }
+    </style>
+@endpush
+
 @section('contents')
+    @php
+        $showNewAddressForm = $addresses->isEmpty() || $errors->any();
+        $createdAddressId = session('address_created');
+    @endphp
+
     <div class="container mb-60 mt-60">
         <div class="row">
             <div class="col-lg-8 mb-40">
@@ -15,38 +79,65 @@
             <div class="col-xl-8">
 
                 <div class="wsus__shipping_address mb_40">
-                    <h4>Billing Address
-                    </h4>
+                    <h4>Billing Address</h4>
 
-                    @if (user()->addresses->count() == 0)
-                        <div class="alert alert-warning mt-20">You don't have any address. Please add your address. <a
-                                href="{{ route('address.create') }}"> <b>(Create Address)</b></a></div>
+                    @if ($addresses->isEmpty())
+                        <div class="alert alert-warning mt-20">You don't have a saved address. Complete the form below to continue.</div>
                     @endif
 
 
-                    <div class="row">
-                        @foreach (user()->addresses as $address)
-                            <div class="col-md-6 col-lg-4 col-xl-4">
-                                <div class="wsus__shipping_address_item">
-                                    <div class="form-check form-check-inline">
-                                        <input class="form-check-input billing_address" type="radio"
-                                            name="billing_address" id="shipping-{{ $address->id }}"
-                                            value="{{ $address->id }}">
-                                        <label class="form-check-label"
-                                            for="shipping-{{ $address->id }}">{{ $address->address }},
-                                            {{ $address->city }}, {{ $address->state }}, {{ $address->zip }},
-                                            {{ $address->country }}</label>
-                                    </div>
-                                    <div class="wsus__shipping_mail_address">
-                                        <a href="javascript:;">{{ $address->email }}</a>
-                                        <a href="javascript:;">{{ $address->phone }}</a>
-                                        @if ($address->is_default == 1)
-                                            <span class="text-success">(Default)</span>
-                                        @endif
-                                    </div>
-                                </div>
+                    <p class="text-muted mb-3">Select a saved address or add a new one.</p>
+
+                    <div class="row g-3">
+                        @foreach ($addresses as $address)
+                            @php
+                                $selectedAddress = !$showNewAddressForm
+                                    && ($createdAddressId
+                                        ? $createdAddressId == $address->id
+                                        : $address->is_default);
+                            @endphp
+                            <div class="col-md-6">
+                                <label class="checkout-address-card {{ $selectedAddress ? 'is-selected' : '' }}"
+                                    for="billing-{{ $address->id }}">
+                                    <input class="form-check-input billing_address" type="radio"
+                                        name="billing_address" id="billing-{{ $address->id }}"
+                                        value="{{ $address->id }}" @checked($selectedAddress)>
+                                    <span class="checkout-address-card__content">
+                                        <span class="checkout-address-card__title">
+                                            {{ $address->first_name }} {{ $address->last_name }}
+                                            @if ($address->is_default)
+                                                <span class="badge bg-success ms-1">Default</span>
+                                            @endif
+                                        </span>
+                                        {{ $address->address }}, {{ $address->city }}, {{ $address->state }},
+                                        {{ $address->zip }}, {{ $address->country }}
+                                        <span class="checkout-address-card__meta">
+                                            {{ $address->email }}<br>{{ $address->phone }}
+                                        </span>
+                                    </span>
+                                </label>
                             </div>
                         @endforeach
+
+                        <div class="col-md-6">
+                            <label class="checkout-address-card checkout-address-card--new {{ $showNewAddressForm ? 'is-selected' : '' }}"
+                                for="new-address-choice">
+                                <input class="form-check-input new_address_choice" type="radio" name="address_choice"
+                                    id="new-address-choice" value="new" @checked($showNewAddressForm)>
+                                <span class="checkout-address-card__content">
+                                    <span class="checkout-address-card__title">Add a new address</span>
+                                    Enter a different billing or delivery address.
+                                </span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div id="checkout-address-form" class="mt-4 {{ $showNewAddressForm ? '' : 'd-none' }}">
+                        <div class="card border p-4">
+                            <h4 class="mb-1">Enter a New Address</h4>
+                            <p class="text-muted mb-4">Save this address and use it immediately for this order.</p>
+                            @include('frontend.dashboard.address._form', ['returnTo' => 'checkout', 'address' => null])
+                        </div>
                     </div>
                 </div>
 
@@ -59,16 +150,16 @@
                                         <input class="form-check-input ship_to_different_address" type="checkbox"
                                             name="checkbox" id="differentaddress">
                                         <label class="form-check-label label_info" data-bs-toggle="collapse"
-                                            data-target="#collapseAddress" href="#collapseAddress"
+                                            data-bs-target="#collapseAddress"
                                             aria-controls="collapseAddress" for="differentaddress"><span>Ship to a
                                                 different address?</span></label>
                                     </div>
                                 </div>
                             </div>
-                            <div id="collapseAddress" class="different_address collapse in">
+                            <div id="collapseAddress" class="different_address collapse">
                                 <h4>Shipping Details</h4>
                                 <div class="row mb-50">
-                                    @foreach (user()->addresses as $address)
+                                    @foreach ($addresses as $address)
                                         <div class="col-md-6 col-lg-4 col-xl-4">
                                             <div class="wsus__shipping_address_item">
                                                 <div class="form-check form-check-inline">
@@ -183,6 +274,27 @@
             $('.shipping_method').prop('checked', false);
             $('.ship_to_different_address').prop('checked', false);
 
+            function selectAddressCard(input) {
+                $('.checkout-address-card').removeClass('is-selected');
+                input.closest('.checkout-address-card').addClass('is-selected');
+            }
+
+            $('.billing_address').on('change', function() {
+                $('.new_address_choice').prop('checked', false);
+                $('#checkout-address-form').addClass('d-none');
+                selectAddressCard($(this));
+            });
+
+            $('.new_address_choice').on('change', function() {
+                $('.billing_address').prop('checked', false);
+                $('#checkout-address-form').removeClass('d-none');
+                selectAddressCard($(this));
+                document.getElementById('checkout-address-form')?.scrollIntoView({
+                    behavior: 'smooth',
+                    block: 'start'
+                });
+            });
+
             $('.shipping_method').on('change', function() {
                 let id = $(this).val();
                 $.ajax({
@@ -197,19 +309,28 @@
 
             $('.make-payment-button').on('click', function() {
 
+                let hasError = false;
+
                 // check shipping method is selected
                 if (!$('.shipping_method:checked').length > 0) {
                     notyf.error('Please select a shipping method');
+                    hasError = true;
                 }
 
                 // check shipping address is selected
                 if (!$('.billing_address:checked').length > 0) {
                     notyf.error('Please select a billing address');
+                    hasError = true;
                 }
 
                 if ($('.ship_to_different_address').is(':checked') && (!$('.shipping_address:checked')
                         .length > 0)) {
                     notyf.error('Please select a shipping address');
+                    hasError = true;
+                }
+
+                if (hasError) {
+                    return;
                 }
 
 

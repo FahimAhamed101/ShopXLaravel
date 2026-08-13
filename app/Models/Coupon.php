@@ -14,5 +14,10 @@ class Coupon extends Model
         'minimum_spend' => 'float',
         'maximum_spend' => 'float',
         'value' => 'float',
+        'usage_limit_per_coupon' => 'integer',
+        'usage_limit_per_customer' => 'integer',
+        'used' => 'integer',
+        'start_date' => 'datetime',
+        'end_date' => 'datetime',
     ];
 }
